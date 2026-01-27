@@ -10,9 +10,11 @@ const FarmOwnerDashboard = Loadable(lazy(() => import('views/farmOwner/dashboard
 const AdminDashboard = Loadable(lazy(() => import('views/admin/dashboard')));
 
 // render - sample page
-const SamplePage = Loadable(lazy(() => import('views/farmOwner/sample-page')));
+const CropRecommendationPage = Loadable(lazy(() => import('views/farmOwner/crop-recommendation')));
+const FarmManagementPage = Loadable(lazy(() => import('views/farmOwner/farm-management')));
 const SamplePage1 = Loadable(lazy(() => import('views/admin/sample-page')));
 const LoginPage = Loadable(lazy(() => import('views/auth/Login')));
+const SamplePage = Loadable(lazy(() => import('views/farmOwner/sample-page')));
 
 
 // ==============================|| MAIN ROUTING ||============================== //
@@ -35,7 +37,6 @@ function RoleBasedDashboard() {
   return <FarmOwnerDashboard />;
 }
 
-
 const MainRoutes = {
   path: '/',
   element: <ProtectedRoute>
@@ -54,9 +55,18 @@ const MainRoutes = {
           element: <FarmOwnerDashboard/>
         },
         {
+          path: 'crop-recommendation',
+          element: <CropRecommendationPage />
+        },
+        {
+          path: 'farm-management',
+          element: <FarmManagementPage/>
+        },
+        {
+          /*New Page Route */
           path: 'sample-page',
-          element: <SamplePage />
-        }
+          element: <SamplePage/>
+        },
       ]
     },
     {

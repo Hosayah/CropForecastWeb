@@ -1,44 +1,22 @@
 import { useState } from 'react';
+import { useAuth } from 'contexts/AuthContext';
 
 // material-ui
-import Avatar from '@mui/material/Avatar';
-import AvatarGroup from '@mui/material/AvatarGroup';
-import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemAvatar from '@mui/material/ListItemAvatar';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { InputLabel } from '@mui/material';
 import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Box from '@mui/material/Box';
 
 // project imports
+import AnalyticCardSkeleton from '../../components/skeletons/AnalyticCardSkeleton';
+import ChartSkeleton from '../../components/skeletons/ChartSkeleton';
 import MainCard from 'components/MainCard';
 import AnalyticEcommerce from 'components/cards/statistics/AnalyticEcommerce';
-import ReportAreaChart from 'sections/dashboard/default/ReportAreaChart';
-import SaleReportCard from 'sections/dashboard/default/SaleReportCard';
-import OrdersTable from 'sections/dashboard/default/OrdersTable';
+import RiskReportCard from 'sections/dashboard/default/RiskReportCard';
+import CropsTable from 'sections/dashboard/default/CropsTable';
 import CropTrendCard from 'sections/dashboard/default/CropTrendCard';
-
-// assets
-import EllipsisOutlined from '@ant-design/icons/EllipsisOutlined';
-import GiftOutlined from '@ant-design/icons/GiftOutlined';
-import MessageOutlined from '@ant-design/icons/MessageOutlined';
-import SettingOutlined from '@ant-design/icons/SettingOutlined';
-
-import avatar1 from 'assets/images/users/avatar-1.png';
-import avatar2 from 'assets/images/users/avatar-2.png';
-import avatar3 from 'assets/images/users/avatar-3.png';
-import avatar4 from 'assets/images/users/avatar-4.png';
 
 // viewModel
 import { useCropAnalytics } from 'viewModel/useCropAnalytics';
@@ -46,267 +24,106 @@ import { useCropAnalytics } from 'viewModel/useCropAnalytics';
 // datas
 import { PROVINCES } from 'data/provinces';
 
-// avatar style
-const avatarSX = {
-  width: 36,
-  height: 36,
-  fontSize: '1rem'
-};
+function getTopCropsFromTrend(series, topN = 10) {
+  if (!Array.isArray(series)) return [];
 
-// action style
-const actionSX = {
-  mt: 0.75,
-  ml: 1,
-  top: 'auto',
-  right: 'auto',
-  alignSelf: 'flex-start',
-  transform: 'none'
-};
+  return series
+    .map((s) => ({
+      crop: s.label,
+      // latest forecast value (last quarter)
+      value: s.data[s.data.length - 1] ?? 0,
+      // optional: total forecast
+      total: s.data.reduce((a, b) => a + b, 0)
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, topN);
+}
 
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function FarmOwnerDashboard() {
+  const { user } = useAuth();
+  const defaultProvince = user?.province || 'ALL';
+  console.log('User province:', defaultProvince);
+  const PROVINCE_STORAGE_KEY = 'agrisense:selected_province';
+  const [province, setProvince] = useState(() => {
+    return localStorage.getItem(PROVINCE_STORAGE_KEY) || defaultProvince;
+  });
+
+  const handleProvinceChange = (value) => {
+    setProvince(value);
+    localStorage.setItem(PROVINCE_STORAGE_KEY, value);
+  };
+
+
   const { summary, trend, risk, loading } = useCropAnalytics({
     horizon: 4,
-    province: 'Pangasinan',
-    crops: ['Palay', 'Irrigated Palay']
+    province
   });
-  const [province, setProvince] = useState('ALL');
 
-  const [orderMenuAnchor, setOrderMenuAnchor] = useState(null);
-  const [analyticsMenuAnchor, setAnalyticsMenuAnchor] = useState(null);
-
-  const handleOrderMenuClick = (event) => {
-    setOrderMenuAnchor(event.currentTarget);
-  };
-  const handleOrderMenuClose = () => {
-    setOrderMenuAnchor(null);
-  };
-
-  const handleAnalyticsMenuClick = (event) => {
-    setAnalyticsMenuAnchor(event.currentTarget);
-  };
-  const handleAnalyticsMenuClose = () => {
-    setAnalyticsMenuAnchor(null);
-  };
-
+  const topCrops = trend ? getTopCropsFromTrend(trend.series, 10) : [];
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
       {/* row 1 */}
-      <Grid sx={{ mb: -2.25 }} size={12}>
-        <Typography variant="h5">Dashboard</Typography>
-      </Grid>
-      <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Dashboard</Typography>
+      <Grid size={12}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+        >
+          <Typography variant="h5">Dashboard</Typography>
 
-        <Stack direction="row" spacing={1} alignItems="center">
-          <InputLabel>Province:</InputLabel>
-          <Select size="small" value={province} onChange={(e) => setProvince(e.target.value)} sx={{ minWidth: 200 }}>
-            {PROVINCES.map((prov) => (
-              <MenuItem key={prov} value={prov}>
-                {prov}
-              </MenuItem>
-            ))}
-          </Select>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <InputLabel>Province:</InputLabel>
+            <Select size="small" value={province} onChange={(e) => handleProvinceChange(e.target.value)} sx={{ minWidth: { xs: '100%', sm: 220 } }}>
+              {PROVINCES.map((prov) => (
+                <MenuItem key={prov} value={prov}>
+                  {prov}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
         </Stack>
       </Grid>
 
-      {summary.map((item) => (
-        <Grid key={item.metric} size={{ xs: 12, sm: 6, lg: 4 }}>
-          <AnalyticEcommerce title={item.label} count={item.value.toLocaleString()} extra={item.unit} />
-        </Grid>
-      ))}
+      {loading
+        ? Array.from({ length: 3 }).map((_, idx) => (
+            <Grid key={idx} size={{ xs: 12, sm: 6, lg: 4 }}>
+              <AnalyticCardSkeleton />
+            </Grid>
+          ))
+        : summary.map((item) => (
+            <Grid key={item.metric} size={{ xs: 12, sm: 6, lg: 4 }}>
+              <AnalyticEcommerce title={item.label} count={item.value.toLocaleString()} extra={item.unit} />
+            </Grid>
+          ))}
 
       <Grid sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} size={{ md: 8 }} />
       {/* row 2 */}
-      <Grid size={{ xs: 12 }}>{trend && <CropTrendCard labels={trend.labels} series={trend.series} />}</Grid>
+      <Grid size={{ xs: 12 }}>
+        {loading ? (
+          <MainCard content={false} sx={{ mt: 1.5 }}>
+            <ChartSkeleton />
+          </MainCard>
+        ) : (
+          trend && <CropTrendCard labels={trend.labels} series={trend.series} />
+        )}
+      </Grid>
+
       {/* row 3 */}
-      <Grid size={{ xs: 12, md: 7, lg: 8 }}>
-        <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-          <Grid>
-            <Typography variant="h5">Recent Orders</Typography>
-          </Grid>
-          <Grid>
-            <IconButton onClick={handleOrderMenuClick}>
-              <EllipsisOutlined style={{ fontSize: '1.25rem' }} />
-            </IconButton>
-            <Menu
-              id="fade-menu"
-              slotProps={{ list: { 'aria-labelledby': 'fade-button' } }}
-              anchorEl={orderMenuAnchor}
-              onClose={handleOrderMenuClose}
-              open={Boolean(orderMenuAnchor)}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            >
-              <MenuItem onClick={handleOrderMenuClose}>Export as CSV</MenuItem>
-              <MenuItem onClick={handleOrderMenuClose}>Export as Excel</MenuItem>
-              <MenuItem onClick={handleOrderMenuClose}>Print Table</MenuItem>
-            </Menu>
-          </Grid>
-        </Grid>
+      <Grid size={{ xs: 12, lg: 8 }}>
         <MainCard sx={{ mt: 2 }} content={false}>
-          <OrdersTable />
+          {loading ? <ChartSkeleton /> : <CropsTable rows={topCrops} province={province} />}
         </MainCard>
       </Grid>
-      <Grid size={{ xs: 12, md: 5, lg: 4 }}>
+
+      <Grid size={{ xs: 12, lg: 4 }}>
         <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-          <Grid>
-            <Typography variant="h5">Analytics Report</Typography>
-          </Grid>
-          <Grid>
-            <IconButton onClick={handleAnalyticsMenuClick}>
-              <EllipsisOutlined style={{ fontSize: '1.25rem' }} />
-            </IconButton>
-            <Menu
-              id="fade-menu"
-              slotProps={{ list: { 'aria-labelledby': 'fade-button' } }}
-              anchorEl={analyticsMenuAnchor}
-              open={Boolean(analyticsMenuAnchor)}
-              onClose={handleAnalyticsMenuClose}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            >
-              <MenuItem onClick={handleAnalyticsMenuClose}>Weekly</MenuItem>
-              <MenuItem onClick={handleAnalyticsMenuClose}>Monthly</MenuItem>
-              <MenuItem onClick={handleAnalyticsMenuClose}>Yearly</MenuItem>
-            </Menu>
+          <Grid sx={{ mt: 2 }}>
+            <RiskReportCard riskDistribution={risk} loading={loading} />
           </Grid>
         </Grid>
-        <MainCard sx={{ mt: 2 }} content={false}>
-          <List sx={{ p: 0, '& .MuiListItemButton-root': { py: 2 } }}>
-            <ListItemButton divider>
-              <ListItemText primary="Company Finance Growth" />
-              <Typography variant="h5">+45.14%</Typography>
-            </ListItemButton>
-            <ListItemButton divider>
-              <ListItemText primary="Company Expenses Ratio" />
-              <Typography variant="h5">0.58%</Typography>
-            </ListItemButton>
-            <ListItemButton>
-              <ListItemText primary="Business Risk Cases" />
-              <Typography variant="h5">Low</Typography>
-            </ListItemButton>
-          </List>
-          <ReportAreaChart />
-        </MainCard>
-      </Grid>
-      {/* row 4 */}
-      <Grid size={{ xs: 12, md: 7, lg: 8 }}>
-        <SaleReportCard />
-      </Grid>
-      <Grid size={{ xs: 12, md: 5, lg: 4 }}>
-        <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-          <Grid>
-            <Typography variant="h5">Transaction History</Typography>
-          </Grid>
-          <Grid />
-        </Grid>
-        <MainCard sx={{ mt: 2 }} content={false}>
-          <List
-            component="nav"
-            sx={{
-              px: 0,
-              py: 0,
-              '& .MuiListItemButton-root': {
-                py: 1.5,
-                px: 2,
-                '& .MuiAvatar-root': avatarSX,
-                '& .MuiListItemSecondaryAction-root': { ...actionSX, position: 'relative' }
-              }
-            }}
-          >
-            <ListItem
-              component={ListItemButton}
-              divider
-              secondaryAction={
-                <Stack sx={{ alignItems: 'flex-end' }}>
-                  <Typography variant="subtitle1" noWrap>
-                    + $1,430
-                  </Typography>
-                  <Typography variant="h6" color="secondary" noWrap>
-                    78%
-                  </Typography>
-                </Stack>
-              }
-            >
-              <ListItemAvatar>
-                <Avatar sx={{ color: 'success.main', bgcolor: 'success.lighter' }}>
-                  <GiftOutlined />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText primary={<Typography variant="subtitle1">Order #002434</Typography>} secondary="Today, 2:00 AM" />
-            </ListItem>
-            <ListItem
-              component={ListItemButton}
-              divider
-              secondaryAction={
-                <Stack sx={{ alignItems: 'flex-end' }}>
-                  <Typography variant="subtitle1" noWrap>
-                    + $302
-                  </Typography>
-                  <Typography variant="h6" color="secondary" noWrap>
-                    8%
-                  </Typography>
-                </Stack>
-              }
-            >
-              <ListItemAvatar>
-                <Avatar sx={{ color: 'primary.main', bgcolor: 'primary.lighter' }}>
-                  <MessageOutlined />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText primary={<Typography variant="subtitle1">Order #984947</Typography>} secondary="5 August, 1:45 PM" />
-            </ListItem>
-            <ListItem
-              component={ListItemButton}
-              secondaryAction={
-                <Stack sx={{ alignItems: 'flex-end' }}>
-                  <Typography variant="subtitle1" noWrap>
-                    + $682
-                  </Typography>
-                  <Typography variant="h6" color="secondary" noWrap>
-                    16%
-                  </Typography>
-                </Stack>
-              }
-            >
-              <ListItemAvatar>
-                <Avatar sx={{ color: 'error.main', bgcolor: 'error.lighter' }}>
-                  <SettingOutlined />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText primary={<Typography variant="subtitle1">Order #988784</Typography>} secondary="7 hours ago" />
-            </ListItem>
-          </List>
-        </MainCard>
-        <MainCard sx={{ mt: 2 }}>
-          <Stack sx={{ gap: 3 }}>
-            <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Grid>
-                <Stack>
-                  <Typography variant="h5" noWrap>
-                    Help & Support Chat
-                  </Typography>
-                  <Typography variant="caption" color="secondary" noWrap>
-                    Typical replay within 5 min
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid>
-                <AvatarGroup sx={{ '& .MuiAvatar-root': { width: 32, height: 32 } }}>
-                  <Avatar alt="Remy Sharp" src={avatar1} />
-                  <Avatar alt="Travis Howard" src={avatar2} />
-                  <Avatar alt="Cindy Baker" src={avatar3} />
-                  <Avatar alt="Agnes Walker" src={avatar4} />
-                </AvatarGroup>
-              </Grid>
-            </Grid>
-            <Button size="small" variant="contained" sx={{ textTransform: 'capitalize' }}>
-              Need Help?
-            </Button>
-          </Stack>
-        </MainCard>
       </Grid>
     </Grid>
   );

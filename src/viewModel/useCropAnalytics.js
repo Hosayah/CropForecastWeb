@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import {
   analyticsSummaryApi,
   analyticsTrendApi,
-  analyticsRiskApi
+  analyticsRiskApi,
+  analyticsAvailableCropsApi
 } from '../model/cropTrendApi';
 
 export function useCropAnalytics({ horizon = 4, province = 'ALL', crops = [] }) {
@@ -11,12 +12,16 @@ export function useCropAnalytics({ horizon = 4, province = 'ALL', crops = [] }) 
   const [risk, setRisk] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [availableCrops, setAvailableCrops] = useState([]);
+
 
   useEffect(() => {
     let mounted = true;
 
     async function load() {
       try {
+        const cropsRes = await analyticsAvailableCropsApi({ province });
+
         setLoading(true);
 
         const [summaryRes, trendRes, riskRes] = await Promise.all([
@@ -27,6 +32,7 @@ export function useCropAnalytics({ horizon = 4, province = 'ALL', crops = [] }) 
 
         if (!mounted) return;
 
+        setAvailableCrops(cropsRes.data.crops);
         setSummary(summaryRes.data.summary);
         setTrend(trendRes.data);
         setRisk(riskRes.data);
@@ -45,6 +51,7 @@ export function useCropAnalytics({ horizon = 4, province = 'ALL', crops = [] }) 
     summary,
     trend,
     risk,
+    availableCrops,
     loading,
     error
   };

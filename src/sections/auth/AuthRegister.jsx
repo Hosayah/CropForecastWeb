@@ -79,7 +79,7 @@ export default function AuthRegister() {
           try {
             console.log('Submitting registration with values:', values);
             const res = await register(values);
-            console.log('Message:', res.message); // ✅ This should be a Firebase User object
+            console.log('Message:', res.message); // This should be a Firebase User object
             navigate('/verify-email');
             
           } catch (error) {
