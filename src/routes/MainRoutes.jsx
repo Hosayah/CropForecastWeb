@@ -1,27 +1,34 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from 'contexts/AuthContext';
 
 // project imports
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 
-// render- Dashboard
+// render - Dashboard
 const FarmOwnerDashboard = Loadable(lazy(() => import('views/farmOwner/dashboard')));
-const AdminDashboard = Loadable(lazy(() => import('views/admin/dashboard')));
+const AdminDashboard = Loadable(lazy(() => import('views/admin/adminDashboard')));
 
-// render - sample page
+// render - User pages
 const CropRecommendationPage = Loadable(lazy(() => import('views/farmOwner/crop-recommendation')));
 const FarmManagementPage = Loadable(lazy(() => import('views/farmOwner/farm-management')));
-const SamplePage1 = Loadable(lazy(() => import('views/admin/sample-page')));
 const LoginPage = Loadable(lazy(() => import('views/auth/Login')));
 const SamplePage = Loadable(lazy(() => import('views/farmOwner/sample-page')));
 
+// render - Admin pages
+const AdminUsers = Loadable(lazy(() => import('views/admin/adminUsers')));
+const AdminDatasets = Loadable(lazy(() => import('views/admin/adminDatasets')));
+const AdminSystemConfig = Loadable(lazy(() => import('views/admin/adminSystemConfig')));
+const AdminAuditLogs = Loadable(lazy(() => import('views/admin/adminAuditLogs')));
+const AdminBackupRecovery = Loadable(lazy(() => import('views/admin/adminBackupRecovery')));
+const AdminIntegrations = Loadable(lazy(() => import('views/admin/adminIntegrations')));
 
-// ==============================|| MAIN ROUTING ||============================== //
+// ==============================|| ROUTE GUARDS ||============================== //
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
-  console.log("ProtectedRoute user:", user); // <- check the full user object
+  console.log('ProtectedRoute user:', user);
 
   if (!user) {
     return <LoginPage />;
@@ -29,59 +36,163 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+function RoleGuard({ allowedRoles, children }) {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>403 - Forbidden</h2>
+        <p>You don’t have permission to access this page.</p>
+      </div>
+    );
+  }
+
+  return children;
+}
+
+function AdminOnly({ children }) {
+  return <RoleGuard allowedRoles={['admin', 'superadmin']}>{children}</RoleGuard>;
+}
+
+function FarmOwnerOnly({ children }) {
+  return <RoleGuard allowedRoles={['farm_owner']}>{children}</RoleGuard>;
+}
+
+// ==============================|| ROLE BASED DEFAULT DASHBOARD ||============================== //
+
 function RoleBasedDashboard() {
   const { user } = useAuth();
-  console.log("RoleBasedDashboard user role:", user?.role); // <- check role
+  console.log('RoleBasedDashboard user role:', user?.role);
 
-  if (user?.role === "admin") return <AdminDashboard />;
-  return <FarmOwnerDashboard />;
+  // ✅ Redirect instead of rendering dashboard at "/"
+  if (user?.role === 'admin' || user?.role === 'superadmin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return <Navigate to="/farmOwner/dashboard" replace />;
 }
+
+// ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
   path: '/',
-  element: <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>,
+  element: (
+    <ProtectedRoute>
+      <DashboardLayout />
+    </ProtectedRoute>
+  ),
   children: [
     {
       path: '/',
-      element: <RoleBasedDashboard/>
+      element: <RoleBasedDashboard />
     },
+
+    // FARM OWNER ROUTES (farm_owner only)
     {
       path: 'farmOwner',
       children: [
         {
           path: 'dashboard',
-          element: <FarmOwnerDashboard/>
+          element: (
+            <FarmOwnerOnly>
+              <FarmOwnerDashboard />
+            </FarmOwnerOnly>
+          )
         },
         {
           path: 'crop-recommendation',
-          element: <CropRecommendationPage />
+          element: (
+            <FarmOwnerOnly>
+              <CropRecommendationPage />
+            </FarmOwnerOnly>
+          )
         },
         {
           path: 'farm-management',
-          element: <FarmManagementPage/>
+          element: (
+            <FarmOwnerOnly>
+              <FarmManagementPage />
+            </FarmOwnerOnly>
+          )
         },
         {
-          /*New Page Route */
           path: 'sample-page',
-          element: <SamplePage/>
-        },
+          element: (
+            <FarmOwnerOnly>
+              <SamplePage />
+            </FarmOwnerOnly>
+          )
+        }
       ]
     },
+
+    // ADMIN ROUTES (admin + superadmin)
     {
       path: 'admin',
       children: [
         {
           path: 'dashboard',
-          element: <AdminDashboard />
+          element: (
+            <AdminOnly>
+              <AdminDashboard />
+            </AdminOnly>
+          )
         },
         {
-          path: 'sample-page',
-          element: <SamplePage1 />
+          path: 'manage-users',
+          element: (
+            <AdminOnly>
+              <AdminUsers />
+            </AdminOnly>
+          )
+        },
+        {
+          path: 'datasets',
+          element: (
+            <AdminOnly>
+              <AdminDatasets />
+            </AdminOnly>
+          )
+        },
+        {
+          path: 'system-config',
+          element: (
+            <AdminOnly>
+              <AdminSystemConfig />
+            </AdminOnly>
+          )
+        },
+        {
+          path: 'audit-logs',
+          element: (
+            <AdminOnly>
+              <AdminAuditLogs />
+            </AdminOnly>
+          )
+        },
+        {
+          path: 'backup',
+          element: (
+            <AdminOnly>
+              <AdminBackupRecovery />
+            </AdminOnly>
+          )
+        },
+        {
+          path: 'integrations',
+          element: (
+            <AdminOnly>
+              <AdminIntegrations />
+            </AdminOnly>
+          )
         }
       ]
-    },
+    }
   ]
 };
 

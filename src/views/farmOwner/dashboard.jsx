@@ -57,11 +57,12 @@ export default function FarmOwnerDashboard() {
 
 
   const { summary, trend, risk, loading } = useCropAnalytics({
-    horizon: 4,
+    horizon: 5,
     province
   });
 
   const topCrops = trend ? getTopCropsFromTrend(trend.series, 10) : [];
+  console.log('Top crops:', trend);
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
       {/* row 1 */}

@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { replace, Link as RouterLink, useNavigate } from 'react-router-dom';
 
 
 // material-ui
@@ -62,6 +62,7 @@ export default function AuthLogin({ isDemo = false }) {
           //console.log('Submitting registration with values:', values);
           const result = await login(values.email, values.password);
           if (result.success) {
+            console.log(result)
             console.log('Login successful');
             navigate('/'); // redirect after login
           }

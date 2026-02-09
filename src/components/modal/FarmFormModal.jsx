@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Dialog,
   DialogTitle,
@@ -9,9 +9,13 @@ import {
   Select,
   MenuItem,
   Button,
-  Stack,
-  InputLabel
+  InputLabel,
+  FormHelperText,
+  FormControl
 } from '@mui/material';
+
+import { Formik } from 'formik';
+import * as Yup from 'yup';
 
 import { PROVINCES } from 'data/provinces';
 
@@ -19,13 +23,8 @@ const SOIL_TYPES = ['Clay', 'Loam', 'Sandy'];
 const DRAINAGE = ['Poor', 'Moderate', 'Good'];
 const FERTILITY = ['Low', 'Medium', 'High'];
 
-export default function FarmFormModal({
-  open,
-  onClose,
-  onSubmit,
-  initialData = {}
-}) {
-  const [form, setForm] = useState({
+export default function FarmFormModal({ open, onClose, onSubmit, initialData = {} }) {
+  const initialValues = {
     name: '',
     province: '',
     soil_type: '',
@@ -33,116 +32,191 @@ export default function FarmFormModal({
     drainage: '',
     fertility: '',
     ...initialData
+  };
+
+  const validationSchema = Yup.object().shape({
+    name: Yup.string().required('Farm Name is required'),
+    province: Yup.string().required('Province is required'),
+    soil_type: Yup.string().required('Soil Type is required'),
+    ph: Yup.number()
+      .typeError('Soil pH must be a number')
+      .required('Soil pH is required')
+      .min(3, 'pH must be at least 3.0')
+      .max(9, 'pH must be at most 9.0'),
+    drainage: Yup.string().required('Drainage is required'),
+    fertility: Yup.string().required('Fertility is required')
   });
-
-  const handleChange = (field) => (e) => {
-    setForm({ ...form, [field]: e.target.value });
-  };
-
-  const handleSubmit = () => {
-    onSubmit(form);
-  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {initialData?.id ? 'Edit Farm' : 'Add Farm'}
-      </DialogTitle>
+      <DialogTitle>{initialData?.id ? 'Edit Farm' : 'Add Farm'}</DialogTitle>
 
-      <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid size={12}>
-            <TextField
-              fullWidth
-              label="Farm Name"
-              value={form.name}
-              onChange={handleChange('name')}
-            />
-          </Grid>
+      <Formik
+        initialValues={initialValues}
+        validationSchema={validationSchema}
+        enableReinitialize
+        onSubmit={(values) => {
+          // optional: make sure ph is a number
+          const payload = {
+            ...values,
+            ph: Number(values.ph)
+          };
 
-          <Grid size={12}>
-            <InputLabel>Province</InputLabel>
-            <Select
-              fullWidth
-              value={form.province}
-              onChange={handleChange('province')}
-            >
-              {PROVINCES.map((prov) => (
-                <MenuItem key={prov} value={prov}>
-                  {prov}
-                </MenuItem>
-              ))}
-            </Select>
-          </Grid>
+          onSubmit(payload);
+        }}
+      >
+        {({ values, errors, touched, handleChange, handleBlur, handleSubmit, isSubmitting, isValid }) => (
+          <form onSubmit={handleSubmit}>
+            <DialogContent>
+              <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                {/* Farm Name */}
+                <Grid size={12}>
+                  <TextField
+                    fullWidth
+                    label="Farm Name"
+                    name="name"
+                    value={values.name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={touched.name && Boolean(errors.name)}
+                    helperText={touched.name && errors.name}
+                  />
+                </Grid>
 
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <InputLabel>Soil Type</InputLabel>
-            <Select
-              fullWidth
-              value={form.soil_type}
-              onChange={handleChange('soil_type')}
-            >
-              {SOIL_TYPES.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
-                </MenuItem>
-              ))}
-            </Select>
-          </Grid>
+                {/* Province */}
+                <Grid size={12}>
+                  <FormControl fullWidth error={touched.province && Boolean(errors.province)}>
+                    <InputLabel>Province</InputLabel>
+                    <Select
+                      name="province"
+                      value={values.province}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      label="Province"
+                    >
+                      {PROVINCES.map((prov) => (
+                        <MenuItem key={prov} value={prov}>
+                          {prov}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {touched.province && errors.province && (
+                      <FormHelperText>{errors.province}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
 
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <InputLabel>Soil pH Level</InputLabel>
-            <TextField
-              fullWidth
-              type="number"
-              placeholder='6.2'
-              inputProps={{ step: 0.1, min: 3, max: 9 }}
-              helperText="Typical range: 5.5 – 7.5"
-              value={form.ph}
-              onChange={handleChange('ph')}
-            />
-          </Grid>
+                {/* Soil Type */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth error={touched.soil_type && Boolean(errors.soil_type)}>
+                    <InputLabel>Soil Type</InputLabel>
+                    <Select
+                      name="soil_type"
+                      value={values.soil_type}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      label="Soil Type"
+                    >
+                      {SOIL_TYPES.map((s) => (
+                        <MenuItem key={s} value={s}>
+                          {s}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {touched.soil_type && errors.soil_type && (
+                      <FormHelperText>{errors.soil_type}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
 
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <InputLabel>Drainage</InputLabel>
-            <Select
-              fullWidth
-              value={form.drainage}
-              onChange={handleChange('drainage')}
-            >
-              {DRAINAGE.map((d) => (
-                <MenuItem key={d} value={d}>
-                  {d}
-                </MenuItem>
-              ))}
-            </Select>
-          </Grid>
+                {/* pH */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Soil pH Level"
+                    name="ph"
+                    type="number"
+                    placeholder="6.2"
+                    inputProps={{ step: 0.1, min: 3, max: 9 }}
+                    value={values.ph}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={touched.ph && Boolean(errors.ph)}
+                    helperText={(touched.ph && errors.ph) || 'Typical range: 5.5 – 7.5'}
+                  />
+                </Grid>
 
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <InputLabel>Fertility</InputLabel>
-            <Select
-              fullWidth
-              value={form.fertility}
-              onChange={handleChange('fertility')}
-            >
-              {FERTILITY.map((f) => (
-                <MenuItem key={f} value={f}>
-                  {f}
-                </MenuItem>
-              ))}
-            </Select>
-          </Grid>
-        </Grid>
-      </DialogContent>
+                {/* Drainage */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth error={touched.drainage && Boolean(errors.drainage)}>
+                    <InputLabel>Drainage</InputLabel>
+                    <Select
+                      name="drainage"
+                      value={values.drainage}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      label="Drainage"
+                    >
+                      {DRAINAGE.map((d) => (
+                        <MenuItem key={d} value={d}>
+                          {d}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {touched.drainage && errors.drainage && (
+                      <FormHelperText>{errors.drainage}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} color="secondary">
-          Cancel
-        </Button>
-        <Button variant="contained" onClick={handleSubmit}>
-          Save Farm
-        </Button>
-      </DialogActions>
+                {/* Fertility */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth error={touched.fertility && Boolean(errors.fertility)}>
+                    <InputLabel>Fertility</InputLabel>
+                    <Select
+                      name="fertility"
+                      value={values.fertility}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      label="Fertility"
+                    >
+                      {FERTILITY.map((f) => (
+                        <MenuItem key={f} value={f}>
+                          {f}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {touched.fertility && errors.fertility && (
+                      <FormHelperText>{errors.fertility}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </DialogContent>
+
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={onClose} color="secondary">
+                Cancel
+              </Button>
+
+              <Button
+                variant="contained"
+                type="submit"
+                disabled={isSubmitting || !isValid}
+              >
+                Save Farm
+              </Button>
+            </DialogActions>
+          </form>
+        )}
+      </Formik>
     </Dialog>
   );
 }
+
+FarmFormModal.propTypes = {
+  open: PropTypes.bool,
+  onClose: PropTypes.func,
+  onSubmit: PropTypes.func,
+  initialData: PropTypes.any
+};
