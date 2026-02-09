@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { loginApi, meApi, logoutApi, registerApi } from '../model/authApi';
 
-
 export function useAuthViewModel() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -38,7 +37,7 @@ export function useAuthViewModel() {
 
       const res = await loginApi(email, password);
 
-      // If mobile, grab the access token from JSON and set it for future requests
+      // Mobile token handling
       if (res.data.access_token) {
         setAuthToken(res.data.access_token);
       }
@@ -49,20 +48,29 @@ export function useAuthViewModel() {
       return { success: true };
     } catch (err) {
       const status = err.response?.status;
+      const reason = err.response?.data?.reason;
+      const message = err.response?.data?.error;
 
+      // ✅ Handle specific 403 reasons
       if (status === 403) {
-        setError('Email not verified');
-        return { success: false, reason: 'NOT_VERIFIED' };
+        if (reason === 'NOT_VERIFIED') {
+          setError('Email not verified');
+          return { success: false, reason: 'NOT_VERIFIED' };
+        }
+
+        if (reason === 'DEACTIVATED') {
+          setError('Account has been deactivated. Please contact administrator.');
+          return { success: false, reason: 'DEACTIVATED' };
+        }
       }
 
-      setError(err.response?.data?.error || 'Login failed');
+      // Default fallback
+      setError(message || 'Login failed');
       return { success: false };
     } finally {
       setLoading(false);
     }
   };
-
-
 
   const loadUser = async () => {
     try {
