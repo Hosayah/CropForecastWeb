@@ -42,7 +42,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // viewModel
-import { useAdminUsersViewModel } from 'viewmodel/useAdminUsersViewModel';
+import { useAdminUsersViewModel } from 'viewModel/useAdminUsersViewModel';
 
 // ==============================|| HELPERS ||============================== //
 
