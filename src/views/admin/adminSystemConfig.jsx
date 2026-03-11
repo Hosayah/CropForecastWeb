@@ -1,90 +1,53 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAdminSystemConfigViewModel } from 'viewModel/useAdminSystemConfigViewModel';
 
 // material-ui
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import TextField from '@mui/material/TextField';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import { InputLabel } from '@mui/material';
 import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Skeleton from '@mui/material/Skeleton';
-
-// snackbar
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import Skeleton from '@mui/material/Skeleton';
+import CircularProgress from '@mui/material/CircularProgress';
+import Chip from '@mui/material/Chip';
 
-// project imports
 import MainCard from 'components/MainCard';
-
-// ==============================|| SMALL HELPERS ||============================== //
-
-function AdminSummaryCard({ title, value, subtitle, loading }) {
-  return (
-    <MainCard content={false} sx={{ height: '100%' }}>
-      <Stack sx={{ p: 2.5 }} spacing={1.25}>
-        <Typography variant="subtitle2" color="text.secondary">
-          {title}
-        </Typography>
-
-        {loading ? (
-          <>
-            <Skeleton height={34} width="55%" />
-            <Skeleton height={18} width="75%" />
-          </>
-        ) : (
-          <>
-            <Typography variant="h4">{value}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {subtitle}
-            </Typography>
-          </>
-        )}
-      </Stack>
-    </MainCard>
-  );
-}
-
-function LabeledField({ label, children }) {
-  return (
-    <Stack spacing={1} sx={{ width: '100%' }}>
-      <InputLabel>{label}</InputLabel>
-      {children}
-    </Stack>
-  );
-}
-
-// ==============================|| ADMIN SYSTEM CONFIG ||============================== //
+import AdminPageHeader from './components/AdminPageHeader';
 
 export default function AdminSystemConfig() {
-  const [loading, setLoading] = useState(true);
+  const {
+    config,
+    loading,
+    saving,
+    fetchConfig,
+    updateConfig,
+    snapshotLoading,
+    generatingSnapshot,
+    latestSnapshot,
+    snapshotStatus,
+    fetchLatestSnapshot,
+    generateSnapshot
+  } = useAdminSystemConfigViewModel();
 
-  const HORIZONS = useMemo(() => ['Q+1', 'Q+2', 'Q+3', 'Q+4', 'Q+5', 'Q+6', 'Q+7', 'Q+8'], []);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmType, setConfirmType] = useState(null);
 
-  const [config, setConfig] = useState({
-    // Forecast horizons
-    defaultHorizon: 'Q+4',
-    maxHorizon: 'Q+8',
-
-    // Thresholds
-    minConfidence: 0.75,
-    minRecordsPerProvince: 30,
-
-    // Feature toggles
-    enableForecasting: true,
-    enableRecommendations: true,
-    enableInteractiveMap: true,
-    enableAuditLogs: true,
-
-    // Maintenance
-    maintenanceMode: false
-  });
-
-  const [savedSnapshot, setSavedSnapshot] = useState(null);
+  const [forecastHorizon, setForecastHorizon] = useState(4);
+  const [lowMinScore, setLowMinScore] = useState(0.75);
+  const [moderateMinScore, setModerateMinScore] = useState(0.5);
+  const [climateWeight, setClimateWeight] = useState(0.6);
+  const [soilWeight, setSoilWeight] = useState(0.4);
+  const [soilTypeWeight, setSoilTypeWeight] = useState(0.35);
+  const [phWeight, setPhWeight] = useState(0.25);
+  const [drainageWeight, setDrainageWeight] = useState(0.25);
+  const [fertilityWeight, setFertilityWeight] = useState(0.15);
 
   const [toast, setToast] = useState({
     open: false,
@@ -93,322 +56,595 @@ export default function AdminSystemConfig() {
   });
 
   useEffect(() => {
-    // ✅ Replace later with Firestore:
-    // GET settings/system
-    const mockFetch = async () => {
-      setLoading(true);
-      await new Promise((r) => setTimeout(r, 700));
-
-      const fetched = {
-        defaultHorizon: 'Q+4',
-        maxHorizon: 'Q+8',
-        minConfidence: 0.75,
-        minRecordsPerProvince: 30,
-        enableForecasting: true,
-        enableRecommendations: true,
-        enableInteractiveMap: true,
-        enableAuditLogs: true,
-        maintenanceMode: false
-      };
-
-      setConfig(fetched);
-      setSavedSnapshot(fetched);
-      setLoading(false);
-    };
-
-    mockFetch();
+    fetchConfig();
+    fetchLatestSnapshot();
   }, []);
 
-  const hasChanges = useMemo(() => {
-    if (!savedSnapshot) return false;
-    return JSON.stringify(config) !== JSON.stringify(savedSnapshot);
-  }, [config, savedSnapshot]);
+  useEffect(() => {
+    if (config) {
+      setForecastHorizon(config.defaultForecastHorizon);
+      const thresholds = config.recommendationThresholds || {};
+      setLowMinScore(Number(thresholds.lowMinScore ?? 0.75));
+      setModerateMinScore(Number(thresholds.moderateMinScore ?? 0.5));
+      const scoring = config.recommendationScoring || {};
+      const weights = scoring.weights || {};
+      const soilWeights = scoring.soilWeights || {};
+      setClimateWeight(Number(weights.climate ?? 0.6));
+      setSoilWeight(Number(weights.soil ?? 0.4));
+      setSoilTypeWeight(Number(soilWeights.soilType ?? 0.35));
+      setPhWeight(Number(soilWeights.ph ?? 0.25));
+      setDrainageWeight(Number(soilWeights.drainage ?? 0.25));
+      setFertilityWeight(Number(soilWeights.fertility ?? 0.15));
+    }
+  }, [config]);
 
-  const handleSaveUIOnly = () => {
-    // ✅ UI-only simulation
-    setSavedSnapshot(config);
-    setToast({
-      open: true,
-      severity: 'success',
-      message: 'Settings saved (UI only). Connect backend later.'
-    });
+  /* ================= CONFIRM HANDLER ================= */
+
+  const handleConfirm = async () => {
+    try {
+      if (confirmType === 'maintenance') {
+        const result = await updateConfig({
+          maintenanceMode: !config.maintenanceMode
+        });
+        if (!result.success) {
+          setToast({
+            open: true,
+            severity: 'error',
+            message: result.error || 'Update failed.'
+          });
+          return;
+        }
+
+        setToast({
+          open: true,
+          severity: 'warning',
+          message: 'Maintenance mode updated.'
+        });
+      }
+
+      if (confirmType === 'ai') {
+        const result = await updateConfig({
+          aiForecastEnabled: !config.aiForecastEnabled
+        });
+        if (!result.success) {
+          setToast({
+            open: true,
+            severity: 'error',
+            message: result.error || 'Update failed.'
+          });
+          return;
+        }
+
+        setToast({
+          open: true,
+          severity: 'info',
+          message: 'AI Forecast engine updated.'
+        });
+      }
+
+      setConfirmOpen(false);
+      setConfirmType(null);
+
+    } catch {
+      setToast({
+        open: true,
+        severity: 'error',
+        message: 'Update failed.'
+      });
+    }
   };
 
-  const handleReset = () => {
-    if (!savedSnapshot) return;
-    setConfig(savedSnapshot);
-    setToast({
-      open: true,
-      severity: 'info',
-      message: 'Changes reverted.'
-    });
+  /* ================= SAVE HORIZON ================= */
+
+  const handleSaveForecastSettings = async () => {
+    try {
+      const result = await updateConfig({
+        defaultForecastHorizon: Number(forecastHorizon)
+      });
+      if (!result.success) {
+        setToast({
+          open: true,
+          severity: 'error',
+          message: result.error || 'Failed to update forecast settings.'
+        });
+        return;
+      }
+
+      setToast({
+        open: true,
+        severity: 'success',
+        message: 'Forecast settings updated.'
+      });
+    } catch {
+      setToast({
+        open: true,
+        severity: 'error',
+        message: 'Failed to update forecast settings.'
+      });
+    }
   };
 
-  const isHorizonValid = useMemo(() => {
-    const d = Number(config.defaultHorizon.replace('Q+', ''));
-    const m = Number(config.maxHorizon.replace('Q+', ''));
-    return d <= m;
-  }, [config.defaultHorizon, config.maxHorizon]);
+  const handleRefreshSnapshot = async () => {
+    const result = await fetchLatestSnapshot();
+    if (!result.success) {
+      setToast({
+        open: true,
+        severity: 'error',
+        message: result.error || 'Failed to refresh snapshot status.'
+      });
+    }
+  };
+
+  const handleSaveRecommendationThresholds = async () => {
+    const low = Number(lowMinScore);
+    const moderate = Number(moderateMinScore);
+
+    if (Number.isNaN(low) || Number.isNaN(moderate)) {
+      setToast({ open: true, severity: 'error', message: 'Thresholds must be valid numbers.' });
+      return;
+    }
+    if (low < 0 || low > 1 || moderate < 0 || moderate > 1) {
+      setToast({ open: true, severity: 'error', message: 'Thresholds must be between 0 and 1.' });
+      return;
+    }
+    if (moderate >= low) {
+      setToast({ open: true, severity: 'error', message: 'Moderate threshold must be lower than low threshold.' });
+      return;
+    }
+
+    const result = await updateConfig({
+      recommendationThresholds: {
+        lowMinScore: low,
+        moderateMinScore: moderate
+      }
+    });
+    if (result.success) {
+      setToast({ open: true, severity: 'success', message: 'Recommendation thresholds updated.' });
+    } else {
+      setToast({ open: true, severity: 'error', message: result.error || 'Failed to update thresholds.' });
+    }
+  };
+
+  const handleSaveRecommendationScoring = async () => {
+    const values = [climateWeight, soilWeight, soilTypeWeight, phWeight, drainageWeight, fertilityWeight].map(Number);
+    if (values.some((v) => Number.isNaN(v) || v <= 0 || v > 1)) {
+      setToast({ open: true, severity: 'error', message: 'All scoring weights must be greater than 0 and not exceed 1.0.' });
+      return;
+    }
+
+    const result = await updateConfig({
+      recommendationScoring: {
+        weights: {
+          climate: Number(climateWeight),
+          soil: Number(soilWeight)
+        },
+        soilWeights: {
+          soilType: Number(soilTypeWeight),
+          ph: Number(phWeight),
+          drainage: Number(drainageWeight),
+          fertility: Number(fertilityWeight)
+        }
+      }
+    });
+
+    if (result.success) {
+      setToast({ open: true, severity: 'success', message: 'Recommendation scoring weights updated.' });
+    } else {
+      setToast({ open: true, severity: 'error', message: result.error || 'Failed to update scoring weights.' });
+    }
+  };
+
+  const handleResetRecommendationScoringDefaults = async () => {
+    const defaults = {
+      weights: { climate: 0.6, soil: 0.4 },
+      soilWeights: { soilType: 0.35, ph: 0.25, drainage: 0.25, fertility: 0.15 }
+    };
+
+    const result = await updateConfig({ recommendationScoring: defaults });
+    if (!result.success) {
+      setToast({ open: true, severity: 'error', message: result.error || 'Failed to reset scoring weights.' });
+      return;
+    }
+
+    setClimateWeight(defaults.weights.climate);
+    setSoilWeight(defaults.weights.soil);
+    setSoilTypeWeight(defaults.soilWeights.soilType);
+    setPhWeight(defaults.soilWeights.ph);
+    setDrainageWeight(defaults.soilWeights.drainage);
+    setFertilityWeight(defaults.soilWeights.fertility);
+    setToast({ open: true, severity: 'success', message: 'Scoring weights reset to defaults.' });
+  };
+
+  const handleGenerateSnapshot = async () => {
+    if (!config?.aiForecastEnabled) {
+      setToast({
+        open: true,
+        severity: 'warning',
+        message: 'AI Forecast is disabled. Enable it first to generate snapshot.'
+      });
+      return;
+    }
+
+    const result = await generateSnapshot();
+    if (result.success) {
+      setToast({
+        open: true,
+        severity: 'success',
+        message: 'Forecast snapshot generated successfully.'
+      });
+    } else {
+      setToast({
+        open: true,
+        severity: 'error',
+        message: result.error || 'Failed to generate forecast snapshot.'
+      });
+    }
+  };
+
+  /* ================= UI ================= */
 
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
-      {/* row 1 */}
-      <Grid size={12}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          justifyContent="space-between"
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-        >
-          <Typography variant="h5">System Configuration</Typography>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <Button variant="outlined" disabled={loading || !hasChanges} onClick={handleReset}>
-              Reset
-            </Button>
+      {/* HEADER */}
+      <Grid size={12}>
+        <AdminPageHeader title="System Configuration (Power Admin Mode)" current="System Configuration" />
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 4 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={1.25}>
+            <Typography variant="subtitle2" color="text.secondary">System Status</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Chip
+                label={`Maintenance: ${config?.maintenanceMode ? 'ON' : 'OFF'}`}
+                color={config?.maintenanceMode ? 'warning' : 'success'}
+                variant="outlined"
+              />
+              <Chip
+                label={`AI Forecast: ${config?.aiForecastEnabled ? 'ENABLED' : 'DISABLED'}`}
+                color={config?.aiForecastEnabled ? 'success' : 'default'}
+                variant="outlined"
+              />
+            </Stack>
+          </Stack>
+        </MainCard>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 4 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={1.25}>
+            <Typography variant="subtitle2" color="text.secondary">Current Versions</Typography>
+            {loading ? (
+              <>
+                <Skeleton width="60%" />
+                <Skeleton width="70%" />
+              </>
+            ) : (
+              <>
+                <Typography variant="body2">Model: {config?.defaultModelVersion || '-'}</Typography>
+                <Typography variant="body2">Dataset: {config?.defaultDatasetVersion || '-'}</Typography>
+              </>
+            )}
+          </Stack>
+        </MainCard>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 4 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={1.25}>
+            <Typography variant="subtitle2" color="text.secondary">Snapshot Status</Typography>
+            <Chip
+              label={
+                snapshotStatus === 'ready'
+                  ? 'READY'
+                  : snapshotStatus === 'no_snapshot'
+                    ? 'NO SNAPSHOT'
+                    : snapshotStatus === 'error'
+                      ? 'ERROR'
+                      : 'IDLE'
+              }
+              color={snapshotStatus === 'ready' ? 'success' : snapshotStatus === 'error' ? 'error' : 'default'}
+              variant="outlined"
+            />
+            <Typography variant="caption" color="text.secondary">
+              {latestSnapshot?.snapshotId ? `ID: ${latestSnapshot.snapshotId}` : 'No generated snapshot yet'}
+            </Typography>
+          </Stack>
+        </MainCard>
+      </Grid>
+
+      {/* MAIN CARD */}
+      <Grid size={{ xs: 12, md: 8 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={3}>
+
+            {loading ? (
+              <>
+                <Skeleton height={40} />
+                <Skeleton height={40} />
+                <Skeleton height={80} />
+              </>
+            ) : (
+              <>
+                {/* Maintenance Mode */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography>Maintenance Mode</Typography>
+                  <Switch
+                    checked={config?.maintenanceMode || false}
+                    onChange={() => {
+                      setConfirmType('maintenance');
+                      setConfirmOpen(true);
+                    }}
+                  />
+                </Stack>
+
+                {/* AI Forecast Toggle */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography>AI Forecast Enabled</Typography>
+                  <Switch
+                    checked={config?.aiForecastEnabled || false}
+                    onChange={() => {
+                      setConfirmType('ai');
+                      setConfirmOpen(true);
+                    }}
+                  />
+                </Stack>
+
+                {/* Forecast Settings */}
+                <Stack spacing={2}>
+                  <Typography variant="subtitle2">
+                    Forecast Settings
+                  </Typography>
+
+                  <TextField
+                    label="Default Forecast Horizon (Quarters)"
+                    type="number"
+                    size="small"
+                    value={forecastHorizon}
+                    onChange={(e) => setForecastHorizon(e.target.value)}
+                  />
+
+                  <TextField
+                    label="Default Model Version"
+                    size="small"
+                    value={config?.defaultModelVersion || '-'}
+                    InputProps={{ readOnly: true }}
+                    helperText="Derived from the currently active model in Model Registry."
+                  />
+
+                  <TextField
+                    label="Default Dataset Version"
+                    size="small"
+                    value={config?.defaultDatasetVersion || '-'}
+                    InputProps={{ readOnly: true }}
+                    helperText="Derived from the currently active dataset in Data Source Management."
+                  />
+
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveForecastSettings}
+                    disabled={saving}
+                  >
+                    {saving
+                      ? <CircularProgress size={18} color="inherit" />
+                      : 'Save Forecast Settings'}
+                  </Button>
+                </Stack>
+
+                {/* Metadata */}
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Last Updated At: {config?.lastUpdatedAt}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Last Updated By: {config?.lastUpdatedBy}
+                  </Typography>
+                </Stack>
+
+                {/* Forecast Snapshot */}
+                <Stack spacing={1.25}>
+                  <Typography variant="subtitle2">Forecast Snapshot</Typography>
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button
+                      variant="contained"
+                      onClick={handleGenerateSnapshot}
+                      disabled={generatingSnapshot || snapshotLoading || !config?.aiForecastEnabled}
+                    >
+                      {generatingSnapshot
+                        ? <CircularProgress size={18} color="inherit" />
+                        : 'Generate Snapshot'}
+                    </Button>
+                    <Button variant="outlined" onClick={handleRefreshSnapshot} disabled={generatingSnapshot || snapshotLoading}>
+                      {snapshotLoading
+                        ? <CircularProgress size={18} color="inherit" />
+                        : 'Refresh Snapshot'}
+                    </Button>
+                  </Stack>
+
+                  {snapshotStatus === 'no_snapshot' && (
+                    <Alert severity="info">No snapshot available yet.</Alert>
+                  )}
+                  {!config?.aiForecastEnabled && (
+                    <Alert severity="warning">AI Forecast is disabled. Snapshot generation is blocked.</Alert>
+                  )}
+
+                  {snapshotStatus === 'error' && (
+                    <Alert severity="error">Failed to fetch latest snapshot.</Alert>
+                  )}
+
+                  {snapshotStatus === 'ready' && (
+                    <Stack spacing={0.5}>
+                      <Typography variant="caption" color="text.secondary">
+                        Snapshot ID: {latestSnapshot?.snapshotId}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Model Version: {latestSnapshot?.metadata?.modelVersion || '-'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Horizon: {latestSnapshot?.metadata?.horizon ?? '-'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Base Period: {latestSnapshot?.metadata?.basePeriod || '-'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Generated At: {latestSnapshot?.metadata?.generatedAt || '-'}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
+
+              </>
+            )}
+
+          </Stack>
+        </MainCard>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 4 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={2}>
+            <Typography variant="subtitle2">Recommendation Score Thresholds</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Used to classify recommendation risk labels. Defaults are applied when no custom config exists.
+            </Typography>
+
+            <TextField
+              label="Low Risk Min Score"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0, max: 1 }}
+              value={lowMinScore}
+              onChange={(e) => setLowMinScore(e.target.value)}
+            />
+            <TextField
+              label="Moderate Risk Min Score"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0, max: 1 }}
+              value={moderateMinScore}
+              onChange={(e) => setModerateMinScore(e.target.value)}
+            />
+            <Alert severity="info" variant="outlined">
+              High risk is derived automatically: score {'<'} {Number(moderateMinScore || 0).toFixed(2)}
+            </Alert>
 
             <Button
               variant="contained"
-              disabled={loading || !hasChanges || !isHorizonValid}
-              onClick={handleSaveUIOnly}
+              onClick={handleSaveRecommendationThresholds}
+              disabled={saving}
             >
-              Save Changes
+              {saving ? <CircularProgress size={18} color="inherit" /> : 'Save Thresholds'}
             </Button>
-          </Stack>
-        </Stack>
-      </Grid>
 
-      {/* summary */}
-      <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-        <AdminSummaryCard
-          title="Default Horizon"
-          value={loading ? '—' : config.defaultHorizon}
-          subtitle="Used when generating analytics"
-          loading={loading}
-        />
-      </Grid>
-
-      <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-        <AdminSummaryCard
-          title="Max Horizon"
-          value={loading ? '—' : config.maxHorizon}
-          subtitle="Maximum forecast range allowed"
-          loading={loading}
-        />
-      </Grid>
-
-      <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-        <AdminSummaryCard
-          title="Maintenance Mode"
-          value={loading ? '—' : config.maintenanceMode ? 'ON' : 'OFF'}
-          subtitle="Restrict access for updates"
-          loading={loading}
-        />
-      </Grid>
-
-      {/* row 2 - forecast config */}
-      <Grid size={{ xs: 12, lg: 7 }}>
-        <MainCard content={false} sx={{ mt: 1.5 }}>
-          <Stack sx={{ p: 2.5 }} spacing={2}>
-            <Typography variant="h6">Forecast Settings</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Configure forecasting horizon defaults and system limits.
+            <Typography variant="subtitle2" sx={{ pt: 1 }}>Recommendation Scoring Weights</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Controls overall climate vs soil influence and soil sub-factor influence. Defaults apply when config is absent.
             </Typography>
 
-            <Divider />
+            <TextField
+              label="Climate Weight"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              value={climateWeight}
+              onChange={(e) => setClimateWeight(e.target.value)}
+            />
+            <TextField
+              label="Soil Weight"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              value={soilWeight}
+              onChange={(e) => setSoilWeight(e.target.value)}
+            />
+            <TextField
+              label="Soil Type Weight"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              value={soilTypeWeight}
+              onChange={(e) => setSoilTypeWeight(e.target.value)}
+            />
+            <TextField
+              label="pH Weight"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              value={phWeight}
+              onChange={(e) => setPhWeight(e.target.value)}
+            />
+            <TextField
+              label="Drainage Weight"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              value={drainageWeight}
+              onChange={(e) => setDrainageWeight(e.target.value)}
+            />
+            <TextField
+              label="Fertility Weight"
+              size="small"
+              type="number"
+              inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              value={fertilityWeight}
+              onChange={(e) => setFertilityWeight(e.target.value)}
+            />
 
-            {loading ? (
-              <Stack spacing={2}>
-                <Skeleton height={50} />
-                <Skeleton height={50} />
-              </Stack>
-            ) : (
-              <Stack spacing={2}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <LabeledField label="Default Horizon">
-                      <Select
-                        value={config.defaultHorizon}
-                        onChange={(e) => setConfig((p) => ({ ...p, defaultHorizon: e.target.value }))}
-                      >
-                        {HORIZONS.map((h) => (
-                          <MenuItem key={h} value={h}>
-                            {h}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </LabeledField>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <LabeledField label="Max Horizon">
-                      <Select
-                        value={config.maxHorizon}
-                        onChange={(e) => setConfig((p) => ({ ...p, maxHorizon: e.target.value }))}
-                      >
-                        {HORIZONS.map((h) => (
-                          <MenuItem key={h} value={h}>
-                            {h}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </LabeledField>
-                  </Grid>
-                </Grid>
-
-                {!isHorizonValid && (
-                  <Alert severity="error">
-                    Default horizon must be less than or equal to Max horizon.
-                  </Alert>
-                )}
-              </Stack>
-            )}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="contained"
+                onClick={handleSaveRecommendationScoring}
+                disabled={saving}
+              >
+                {saving ? <CircularProgress size={18} color="inherit" /> : 'Save Scoring Weights'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleResetRecommendationScoringDefaults}
+                disabled={saving}
+              >
+                Reset to Defaults
+              </Button>
+            </Stack>
           </Stack>
         </MainCard>
       </Grid>
 
-      {/* row 2 right - thresholds */}
-      <Grid size={{ xs: 12, lg: 5 }}>
-        <MainCard content={false} sx={{ mt: 1.5 }}>
-          <Stack sx={{ p: 2.5 }} spacing={2}>
-            <Typography variant="h6">Thresholds</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Controls for recommendation quality and required data volume.
-            </Typography>
+      {/* CONFIRM DIALOG */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirm Action</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2">
+            Are you sure you want to change this setting?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirm}
+            disabled={saving}
+          >
+            {saving
+              ? <CircularProgress size={18} color="inherit" />
+              : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-            <Divider />
-
-            {loading ? (
-              <Stack spacing={2}>
-                <Skeleton height={52} />
-                <Skeleton height={52} />
-              </Stack>
-            ) : (
-              <Stack spacing={2}>
-                <LabeledField label="Minimum Confidence (0.00 to 1.00)">
-                  <TextField
-                    type="number"
-                    inputProps={{ step: 0.01, min: 0, max: 1 }}
-                    value={config.minConfidence}
-                    onChange={(e) => setConfig((p) => ({ ...p, minConfidence: Number(e.target.value) }))}
-                    fullWidth
-                  />
-                </LabeledField>
-
-                <LabeledField label="Minimum Records per Province">
-                  <TextField
-                    type="number"
-                    inputProps={{ step: 1, min: 1 }}
-                    value={config.minRecordsPerProvince}
-                    onChange={(e) => setConfig((p) => ({ ...p, minRecordsPerProvince: Number(e.target.value) }))}
-                    fullWidth
-                  />
-                </LabeledField>
-              </Stack>
-            )}
-          </Stack>
-        </MainCard>
-      </Grid>
-
-      {/* row 3 - feature toggles */}
-      <Grid size={{ xs: 12 }}>
-        <MainCard content={false} sx={{ mt: 2 }}>
-          <Stack sx={{ p: 2.5 }} spacing={2}>
-            <Typography variant="h6">Feature Toggles</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Enable or disable modules without changing code (useful for testing and demo control).
-            </Typography>
-
-            <Divider />
-
-            {loading ? (
-              <Stack spacing={1}>
-                <Skeleton height={32} width="55%" />
-                <Skeleton height={32} width="60%" />
-                <Skeleton height={32} width="50%" />
-                <Skeleton height={32} width="58%" />
-              </Stack>
-            ) : (
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={config.enableForecasting}
-                        onChange={(e) => setConfig((p) => ({ ...p, enableForecasting: e.target.checked }))}
-                      />
-                    }
-                    label="Enable Forecasting"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={config.enableRecommendations}
-                        onChange={(e) => setConfig((p) => ({ ...p, enableRecommendations: e.target.checked }))}
-                      />
-                    }
-                    label="Enable Recommendations"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={config.enableInteractiveMap}
-                        onChange={(e) => setConfig((p) => ({ ...p, enableInteractiveMap: e.target.checked }))}
-                      />
-                    }
-                    label="Enable Interactive Map"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={config.enableAuditLogs}
-                        onChange={(e) => setConfig((p) => ({ ...p, enableAuditLogs: e.target.checked }))}
-                      />
-                    }
-                    label="Enable Audit Logs"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={config.maintenanceMode}
-                        onChange={(e) => setConfig((p) => ({ ...p, maintenanceMode: e.target.checked }))}
-                      />
-                    }
-                    label="Maintenance Mode"
-                  />
-                </Grid>
-              </Grid>
-            )}
-          </Stack>
-        </MainCard>
-      </Grid>
-
-      {/* Toast */}
+      {/* TOAST */}
       <Snackbar
         open={toast.open}
         autoHideDuration={2200}
-        onClose={() => setToast((p) => ({ ...p, open: false }))}
+        onClose={() => setToast(p => ({ ...p, open: false }))}
       >
-        <Alert
-          onClose={() => setToast((p) => ({ ...p, open: false }))}
-          severity={toast.severity}
-          sx={{ width: '100%' }}
-        >
+        <Alert severity={toast.severity} sx={{ width: '100%' }}>
           {toast.message}
         </Alert>
       </Snackbar>
+
     </Grid>
   );
 }

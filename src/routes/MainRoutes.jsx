@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'contexts/AuthContext';
 
 // project imports
@@ -13,6 +13,7 @@ const AdminDashboard = Loadable(lazy(() => import('views/admin/adminDashboard'))
 // render - User pages
 const CropRecommendationPage = Loadable(lazy(() => import('views/farmOwner/crop-recommendation')));
 const FarmManagementPage = Loadable(lazy(() => import('views/farmOwner/farm-management')));
+const FarmMapPage = Loadable(lazy(() => import('views/farmOwner/farm-map')));
 const LoginPage = Loadable(lazy(() => import('views/auth/Login')));
 const SamplePage = Loadable(lazy(() => import('views/farmOwner/sample-page')));
 
@@ -23,15 +24,27 @@ const AdminSystemConfig = Loadable(lazy(() => import('views/admin/adminSystemCon
 const AdminAuditLogs = Loadable(lazy(() => import('views/admin/adminAuditLogs')));
 const AdminBackupRecovery = Loadable(lazy(() => import('views/admin/adminBackupRecovery')));
 const AdminIntegrations = Loadable(lazy(() => import('views/admin/adminIntegrations')));
+const ModelRegistry = Loadable(lazy(() => import('views/ml/ModelRegistry')));
+const MlDatasets = Loadable(lazy(() => import('views/ml/Datasets')));
+const TrainingJobs = Loadable(lazy(() => import('views/ml/TrainingJobs')));
+const TrainingJobDetails = Loadable(lazy(() => import('views/ml/TrainingJobDetails')));
+const MlDashboard = Loadable(lazy(() => import('views/ml/Dashboard')));
+const AnalystOverview = Loadable(lazy(() => import('views/analyst/Overview')));
+const AnalystRiskAnalysis = Loadable(lazy(() => import('views/analyst/RiskAnalysis')));
+const AnalystProvinceComparison = Loadable(lazy(() => import('views/analyst/ProvinceComparison')));
+const AnalystMap = Loadable(lazy(() => import('views/analyst/Map')));
+const AnalystDatasets = Loadable(lazy(() => import('views/analyst/Datasets')));
+const AnalystModelInfo = Loadable(lazy(() => import('views/analyst/ModelInfo')));
+const AnalystAuditLogs = Loadable(lazy(() => import('views/analyst/AuditLogs')));
 
 // ==============================|| ROUTE GUARDS ||============================== //
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
-  console.log('ProtectedRoute user:', user);
+  const location = useLocation();
 
   if (!user) {
-    return <LoginPage />;
+    return <Navigate to="/landing" replace state={{ from: location }} />;
   }
   return children;
 }
@@ -59,19 +72,40 @@ function AdminOnly({ children }) {
   return <RoleGuard allowedRoles={['admin', 'superadmin']}>{children}</RoleGuard>;
 }
 
+function SuperAdminOnly({ children }) {
+  return <RoleGuard allowedRoles={['superadmin']}>{children}</RoleGuard>;
+}
+
 function FarmOwnerOnly({ children }) {
   return <RoleGuard allowedRoles={['farm_owner']}>{children}</RoleGuard>;
+}
+
+function MlModuleAccessOnly({ children }) {
+  return <RoleGuard allowedRoles={['ml_engineer', 'admin', 'superadmin']}>{children}</RoleGuard>;
+}
+
+function MlAdvancedOnly({ children }) {
+  return <RoleGuard allowedRoles={['ml_engineer', 'superadmin']}>{children}</RoleGuard>;
+}
+
+function AnalystAccessOnly({ children }) {
+  return <RoleGuard allowedRoles={['analyst', 'admin', 'superadmin']}>{children}</RoleGuard>;
 }
 
 // ==============================|| ROLE BASED DEFAULT DASHBOARD ||============================== //
 
 function RoleBasedDashboard() {
   const { user } = useAuth();
-  console.log('RoleBasedDashboard user role:', user?.role);
 
   // ✅ Redirect instead of rendering dashboard at "/"
   if (user?.role === 'admin' || user?.role === 'superadmin') {
     return <Navigate to="/admin/dashboard" replace />;
+  }
+  if (user?.role === 'ml_engineer') {
+    return <Navigate to="/ml/dashboard" replace />;
+  }
+  if (user?.role === 'analyst') {
+    return <Navigate to="/analyst/overview" replace />;
   }
 
   return <Navigate to="/farmOwner/dashboard" replace />;
@@ -121,6 +155,22 @@ const MainRoutes = {
           )
         },
         {
+          path: 'create-farm',
+          element: (
+            <FarmOwnerOnly>
+              <FarmManagementPage />
+            </FarmOwnerOnly>
+          )
+        },
+        {
+          path: 'farm-map',
+          element: (
+            <FarmOwnerOnly>
+              <FarmMapPage />
+            </FarmOwnerOnly>
+          )
+        },
+        {
           path: 'sample-page',
           element: (
             <FarmOwnerOnly>
@@ -153,42 +203,166 @@ const MainRoutes = {
         },
         {
           path: 'datasets',
-          element: (
-            <AdminOnly>
-              <AdminDatasets />
-            </AdminOnly>
-          )
+          element: <RoleGuard allowedRoles={['admin', 'superadmin', 'ml_engineer']}><AdminDatasets /></RoleGuard>
         },
         {
           path: 'system-config',
           element: (
-            <AdminOnly>
+            <SuperAdminOnly>
               <AdminSystemConfig />
-            </AdminOnly>
+            </SuperAdminOnly>
           )
         },
         {
           path: 'audit-logs',
           element: (
-            <AdminOnly>
+            <SuperAdminOnly>
               <AdminAuditLogs />
-            </AdminOnly>
+            </SuperAdminOnly>
           )
         },
         {
           path: 'backup',
           element: (
-            <AdminOnly>
+            <SuperAdminOnly>
               <AdminBackupRecovery />
-            </AdminOnly>
+            </SuperAdminOnly>
           )
         },
         {
           path: 'integrations',
           element: (
-            <AdminOnly>
+            <SuperAdminOnly>
               <AdminIntegrations />
-            </AdminOnly>
+            </SuperAdminOnly>
+          )
+        }
+      ]
+    }
+    ,
+    // ML ENGINEER ROUTES (ml_engineer only)
+    {
+      path: 'ml',
+      children: [
+        {
+          path: 'dashboard',
+          element: (
+            <MlAdvancedOnly>
+              <MlDashboard />
+            </MlAdvancedOnly>
+          )
+        },
+        {
+          path: 'models',
+          element: (
+            <MlModuleAccessOnly>
+              <ModelRegistry />
+            </MlModuleAccessOnly>
+          )
+        },
+        {
+          path: 'datasets',
+          element: (
+            <MlAdvancedOnly>
+              <MlDatasets />
+            </MlAdvancedOnly>
+          )
+        },
+        {
+          path: 'models/upload',
+          element: <Navigate to="/ml/models" replace />
+        },
+        {
+          path: 'validation-jobs',
+          element: (
+            <MlAdvancedOnly>
+              <TrainingJobs />
+            </MlAdvancedOnly>
+          )
+        },
+        {
+          path: 'validation-jobs/:jobId',
+          element: (
+            <MlAdvancedOnly>
+              <TrainingJobDetails />
+            </MlAdvancedOnly>
+          )
+        },
+        {
+          path: 'training',
+          element: <Navigate to="/ml/validation-jobs" replace />
+        },
+        {
+          path: 'training/:jobId',
+          element: (
+            <MlAdvancedOnly>
+              <TrainingJobDetails />
+            </MlAdvancedOnly>
+          )
+        },
+        {
+          path: 'monitoring',
+          element: <Navigate to="/ml/dashboard" replace />
+        }
+      ]
+    },
+    {
+      path: 'analyst',
+      children: [
+        {
+          path: 'overview',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystOverview />
+            </AnalystAccessOnly>
+          )
+        },
+        {
+          path: 'risk-analysis',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystRiskAnalysis />
+            </AnalystAccessOnly>
+          )
+        },
+        {
+          path: 'province-comparison',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystProvinceComparison />
+            </AnalystAccessOnly>
+          )
+        },
+        {
+          path: 'map',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystMap />
+            </AnalystAccessOnly>
+          )
+        },
+        {
+          path: 'datasets',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystDatasets />
+            </AnalystAccessOnly>
+          )
+        },
+        {
+          path: 'model-info',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystModelInfo />
+            </AnalystAccessOnly>
+          )
+        },
+        {
+          path: 'audit-logs',
+          element: (
+            <AnalystAccessOnly>
+              <AnalystAuditLogs />
+            </AnalystAccessOnly>
           )
         }
       ]

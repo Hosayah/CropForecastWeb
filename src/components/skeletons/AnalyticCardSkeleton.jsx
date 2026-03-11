@@ -4,11 +4,11 @@ import Stack from '@mui/material/Stack';
 
 export default function AnalyticCardSkeleton() {
   return (
-    <MainCard contentSX={{ p: 2.25 }}>
-      <Stack spacing={1}>
-        <Skeleton variant="text" width="60%" />
-        <Skeleton variant="text" width="40%" height={32} />
-        <Skeleton variant="rectangular" width="50%" height={18} />
+    <MainCard content={false} sx={{ height: '100%' }}>
+      <Stack sx={{ p: 2.5 }} spacing={0.75}>
+        <Skeleton variant="text" width="55%" />
+        <Skeleton variant="text" width="38%" height={34} />
+        <Skeleton variant="text" width="45%" />
       </Stack>
     </MainCard>
   );

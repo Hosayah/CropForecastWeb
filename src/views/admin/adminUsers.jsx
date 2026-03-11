@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 
 import MainCard from 'components/MainCard';
+import AdminPageHeader from './components/AdminPageHeader';
 
 // table
 import Table from '@mui/material/Table';
@@ -43,6 +44,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 // viewModel
 import { useAdminUsersViewModel } from 'viewModel/useAdminUsersViewModel';
+import { useAuth } from 'contexts/AuthContext';
 
 // ==============================|| HELPERS ||============================== //
 
@@ -112,9 +114,15 @@ function generateTempPassword() {
 // ==============================|| ADMIN USERS PAGE ||============================== //
 
 export default function AdminUsers() {
+  const { user } = useAuth();
   const { users, stats, loading, error, fetchUsers, changeRole, toggleStatus, createUser } = useAdminUsersViewModel();
+  const isSuperadmin = user?.role === 'superadmin';
 
   const ROLE_FILTERS = useMemo(() => ['ALL', 'farm_owner', 'admin', 'ml_engineer', 'analyst'], []);
+  const ASSIGNABLE_ROLES = useMemo(
+    () => (isSuperadmin ? ['farm_owner', 'ml_engineer', 'analyst', 'admin'] : ['farm_owner', 'ml_engineer', 'analyst']),
+    [isSuperadmin]
+  );
   const [roleFilter, setRoleFilter] = useState('ALL');
 
   const [search, setSearch] = useState('');
@@ -202,7 +210,7 @@ export default function AdminUsers() {
           justifyContent="space-between"
           alignItems={{ xs: 'stretch', sm: 'center' }}
         >
-          <Typography variant="h5">User Management</Typography>
+          <AdminPageHeader title="User Management" current="User Management" />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <TextField
@@ -319,12 +327,17 @@ export default function AdminUsers() {
                                 size="small"
                                 value={u.role}
                                 onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                                disabled={!isSuperadmin && (u.role === 'admin' || u.role === 'superadmin')}
                                 sx={{ minWidth: 160 }}
                               >
-                                <MenuItem value="farm_owner">FARM OWNER</MenuItem>
-                                <MenuItem value="ml_engineer">ML ENGINEER</MenuItem>
-                                <MenuItem value="analyst">Analyst</MenuItem>
-                                <MenuItem value="admin">ADMIN</MenuItem>
+                                {!ASSIGNABLE_ROLES.includes(u.role) && (
+                                  <MenuItem value={u.role}>{u.role.replace('_', ' ').toUpperCase()}</MenuItem>
+                                )}
+                                {ASSIGNABLE_ROLES.map((roleOption) => (
+                                  <MenuItem key={`${u.id}-${roleOption}`} value={roleOption}>
+                                    {roleOption.replace('_', ' ').toUpperCase()}
+                                  </MenuItem>
+                                ))}
                               </Select>
                             </Stack>
                           </TableCell>
@@ -393,9 +406,9 @@ export default function AdminUsers() {
               <InputLabel sx={{ minWidth: 60 }}>Role:</InputLabel>
               <Select value={createForm.role} onChange={(e) => setCreateForm((p) => ({ ...p, role: e.target.value }))} fullWidth>
                 <MenuItem value="farm_owner">FARM OWNER</MenuItem>
-                <MenuItem value="admin">ADMIN</MenuItem>
                 <MenuItem value="ml_engineer">ML ENGINEER</MenuItem>
                 <MenuItem value="analyst">Analyst</MenuItem>
+                {isSuperadmin && <MenuItem value="admin">ADMIN</MenuItem>}
               </Select>
             </Stack>
 

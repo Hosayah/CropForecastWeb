@@ -37,6 +37,7 @@ import ScienceIcon from '@mui/icons-material/Science';
 
 // project imports
 import MainCard from 'components/MainCard';
+import AdminPageHeader from './components/AdminPageHeader';
 
 // ==============================|| HELPERS ||============================== //
 
@@ -211,7 +212,7 @@ export default function AdminIntegrations() {
           justifyContent="space-between"
           alignItems={{ xs: 'stretch', sm: 'center' }}
         >
-          <Typography variant="h5">Integrations & API Keys</Typography>
+          <AdminPageHeader title="Integrations & API Keys" current="Integrations" />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <Button variant="outlined" disabled={loading || !hasChanges} onClick={handleResetChanges}>

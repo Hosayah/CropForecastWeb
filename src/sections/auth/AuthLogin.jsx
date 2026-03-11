@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import { replace, Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 
 // material-ui
@@ -34,13 +34,14 @@ import EyeInvisibleOutlined from '@ant-design/icons/EyeInvisibleOutlined';
 
 // context
 import { useAuth } from 'contexts/AuthContext';
+import { listFarmsApi } from 'model/farmApi';
 
 // ============================|| JWT - LOGIN ||============================ //
 
 export default function AuthLogin({ isDemo = false }) {
   const navigate = useNavigate();
-  const { login, loading, error } = useAuth();
-  const [checked, setChecked] = React.useState(false);
+  const { login, loading, error, session } = useAuth();
+  const [checked, setChecked] = React.useState(session.rememberMe);
 
   const [showPassword, setShowPassword] = React.useState(false);
   const handleClickShowPassword = () => {
@@ -59,12 +60,37 @@ export default function AuthLogin({ isDemo = false }) {
           password: '',
         }}
         onSubmit={async (values) => {
-          //console.log('Submitting registration with values:', values);
+          session.setRememberMe(checked);
           const result = await login(values.email, values.password);
           if (result.success) {
-            console.log(result)
-            console.log('Login successful');
-            navigate('/'); // redirect after login
+            const role = result?.user?.role;
+
+            if (role === 'farm_owner') {
+              try {
+                const farmsRes = await listFarmsApi();
+                const farms = Array.isArray(farmsRes?.data) ? farmsRes.data : [];
+                navigate(farms.length === 0 ? '/farmOwner/create-farm' : '/farmOwner/dashboard', { replace: true });
+              } catch {
+                // Fallback to farm management if farm check fails.
+                navigate('/farmOwner/create-farm', { replace: true });
+              }
+              return;
+            }
+
+            if (role === 'admin' || role === 'superadmin') {
+              navigate('/admin/dashboard', { replace: true });
+              return;
+            }
+            if (role === 'ml_engineer') {
+              navigate('/ml/dashboard', { replace: true });
+              return;
+            }
+            if (role === 'analyst') {
+              navigate('/analyst/overview', { replace: true });
+              return;
+            }
+
+            navigate('/', { replace: true });
           }
           if(result.reason === 'NOT_VERIFIED') {
             navigate('/verify-email', {
@@ -145,7 +171,11 @@ export default function AuthLogin({ isDemo = false }) {
                     control={
                       <Checkbox
                         checked={checked}
-                        onChange={(event) => setChecked(event.target.checked)}
+                        onChange={(event) => {
+                          const next = event.target.checked;
+                          setChecked(next);
+                          session.setRememberMe(next);
+                        }}
                         name="checked"
                         color="primary"
                         size="small"
@@ -153,7 +183,7 @@ export default function AuthLogin({ isDemo = false }) {
                     }
                     label={<Typography variant="h6">Remember me</Typography>}
                   />
-                  <Link variant="h6" component={RouterLink} to="#" color="text.primary">
+                  <Link variant="h6" component={RouterLink} to="/forgot-password" color="text.primary">
                     Forgot Password?
                   </Link>
                 </Stack>

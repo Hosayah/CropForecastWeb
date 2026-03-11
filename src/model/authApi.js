@@ -1,33 +1,27 @@
-// features/auth/model/authApi.js
-import axios from 'axios';
+import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL: 'https://seriate-calorifically-ray.ngrok-free.dev/auth/v1',
-  withCredentials: true, // 🔥 REQUIRED for HTTP-only cookies
-  headers: {
-    'ngrok-skip-browser-warning': 'true'
-  }
-});
+const api = createApiClient(API_BASES.auth);
 
-// Helper to attach token for mobile
-export const setAuthToken = (token) => {
-  if (token) {
-    api.defaults.headers['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers['Authorization'];
-  }
-};
+export const registerApi = (payload) => api.post('/register', payload);
 
-export const registerApi = (payload) =>
-  api.post('/register', payload);
+export const loginApi = (email, password) => api.post('/login', { email, password });
 
-export const loginApi = (email, password) =>
-  api.post('/login', { email, password });
+export const meApi = () => api.get('/me');
 
-export const meApi = () =>
-  api.get('/me');
+export const logoutApi = () => api.post('/logout');
 
-export const logoutApi = () =>
-  api.post('/logout');
+export const resendVerificationApi = (email) => api.post('/resend-verification', { email });
+
+export const forgotPasswordApi = (email) => api.post('/forgot-password', { email });
+
+export const verifyOtpApi = (email, otp) => api.post('/verify-otp', { email, otp });
+
+export const resetPasswordApi = (email, newPassword) => api.post('/reset-password', { email, newPassword });
+
+export const updateProfileApi = (payload) => api.patch('/profile', payload);
+
+export const changePasswordApi = (oldPassword, newPassword, confirmPassword) =>
+  api.post('/change-password', { oldPassword, newPassword, confirmPassword });
 
 export default api;

@@ -1,7 +1,7 @@
 // material-ui
 import { useTheme } from '@mui/material/styles';
 import { Box } from '@mui/material';
-import logoIcon from 'assets/images/logo/paula.jpg';
+import logoIcon from 'assets/images/logo/logo_text.png';
 
 // ==============================|| LOGO SVG ||============================== //
 
@@ -48,8 +48,8 @@ export default function LogoMain() {
           src={logoIcon}
           alt="App Logo Icon"
           sx={{
-            height: 32,
-            width: 32
+            height: 48,
+            width: 150
           }}
         />
   );

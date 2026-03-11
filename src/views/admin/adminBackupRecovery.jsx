@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAdminBackupViewModel } from 'viewModel/useAdminBackupViewModel';
 
-// material-ui
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -10,14 +10,12 @@ import TextField from '@mui/material/TextField';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import { InputLabel } from '@mui/material';
-
 import Skeleton from '@mui/material/Skeleton';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 
-// table
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -25,17 +23,15 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
-// dialog
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
-// snackbar
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
-// icons
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -43,10 +39,8 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import StorageIcon from '@mui/icons-material/Storage';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-// project imports
 import MainCard from 'components/MainCard';
-
-// ==============================|| HELPERS ||============================== //
+import AdminPageHeader from './components/AdminPageHeader';
 
 function AdminSummaryCard({ title, value, subtitle, loading }) {
   return (
@@ -55,7 +49,6 @@ function AdminSummaryCard({ title, value, subtitle, loading }) {
         <Typography variant="subtitle2" color="text.secondary">
           {title}
         </Typography>
-
         {loading ? (
           <>
             <Skeleton height={34} width="55%" />
@@ -75,13 +68,13 @@ function AdminSummaryCard({ title, value, subtitle, loading }) {
 }
 
 function formatBytes(bytes) {
-  if (!bytes && bytes !== 0) return '—';
+  if (!bytes && bytes !== 0) return '-';
   const units = ['B', 'KB', 'MB', 'GB'];
   let size = bytes;
   let i = 0;
   while (size >= 1024 && i < units.length - 1) {
     size /= 1024;
-    i++;
+    i += 1;
   }
   return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
@@ -103,115 +96,45 @@ function StatusChip({ status }) {
   return <Chip size="small" label={cfg.label} color={cfg.color} variant="outlined" />;
 }
 
-// ==============================|| ADMIN BACKUP & RECOVERY ||============================== //
-
 export default function AdminBackupRecovery() {
-  const [loading, setLoading] = useState(true);
+  const { backups, stats, loading, busy, fetchBackups, createBackup, restoreBackup, removeBackup, downloadBackup } =
+    useAdminBackupViewModel();
 
   const [toast, setToast] = useState({ open: false, severity: 'success', message: '' });
-
   const BACKUP_TYPES = useMemo(() => ['FULL', 'DATASETS_ONLY', 'CONFIG_ONLY'], []);
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [search, setSearch] = useState('');
 
-  const [backups, setBackups] = useState([]);
-
-  const [stats, setStats] = useState({
-    totalBackups: 0,
-    latestBackup: '—',
-    storageUsed: '—',
-    restorePoints: 0
-  });
-
-  // create backup dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
     backupType: 'FULL',
     notes: ''
   });
 
-  // restore confirm dialog
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState(null);
 
   useEffect(() => {
-    // ✅ Replace later with backend:
-    // GET /api/admin/backups
-    const mockFetch = async () => {
-      setLoading(true);
-      await new Promise((r) => setTimeout(r, 750));
-
-      const mock = [
-        {
-          id: 'b1',
-          createdAt: '2026-01-31 18:55',
-          backupType: 'FULL',
-          status: 'ready',
-          sizeBytes: 28400231,
-          createdBy: 'admin@agrisense.com',
-          location: '/storage/backups/backup_2026-01-31_full.zip',
-          notes: 'Before major dataset update'
-        },
-        {
-          id: 'b2',
-          createdAt: '2026-01-20 10:12',
-          backupType: 'DATASETS_ONLY',
-          status: 'ready',
-          sizeBytes: 18450211,
-          createdBy: 'admin@agrisense.com',
-          location: '/storage/backups/backup_2026-01-20_datasets.zip',
-          notes: 'Datasets snapshot'
-        },
-        {
-          id: 'b3',
-          createdAt: '2026-01-10 09:40',
-          backupType: 'CONFIG_ONLY',
-          status: 'ready',
-          sizeBytes: 82011,
-          createdBy: 'admin@agrisense.com',
-          location: '/storage/backups/backup_2026-01-10_config.json',
-          notes: ''
-        }
-      ];
-
-      setBackups(mock);
-
-      const totalBackups = mock.length;
-      const latestBackup = mock[0]?.createdAt || '—';
-      const storageUsedBytes = mock.reduce((sum, b) => sum + (b.sizeBytes || 0), 0);
-      const restorePoints = mock.filter((b) => b.status === 'ready').length;
-
-      setStats({
-        totalBackups,
-        latestBackup,
-        storageUsed: formatBytes(storageUsedBytes),
-        restorePoints
-      });
-
-      setLoading(false);
-    };
-
-    mockFetch();
+    fetchBackups();
   }, []);
 
   const filteredBackups = useMemo(() => {
     let list = [...backups];
-
     if (typeFilter !== 'ALL') list = list.filter((b) => b.backupType === typeFilter);
 
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
         (b) =>
-          b.id.toLowerCase().includes(q) ||
-          b.backupType.toLowerCase().includes(q) ||
-          b.createdBy.toLowerCase().includes(q) ||
-          b.location.toLowerCase().includes(q) ||
+          (b.id || '').toLowerCase().includes(q) ||
+          (b.backupType || '').toLowerCase().includes(q) ||
+          (b.createdBy || '').toLowerCase().includes(q) ||
+          (b.location || '').toLowerCase().includes(q) ||
           (b.notes || '').toLowerCase().includes(q)
       );
     }
 
-    list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    list.sort((a, b) => (b.createdAtIso || '').localeCompare(a.createdAtIso || ''));
     return list;
   }, [backups, typeFilter, search]);
 
@@ -220,27 +143,14 @@ export default function AdminBackupRecovery() {
     setCreateOpen(true);
   };
 
-  const createBackupUIOnly = () => {
-    // ✅ UI-only simulation
-    const newBackup = {
-      id: `b_${Date.now()}`,
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      backupType: createForm.backupType,
-      status: 'ready',
-      sizeBytes: Math.floor(1000000 + Math.random() * 20000000),
-      createdBy: 'admin@agrisense.com',
-      location: `/storage/backups/backup_${Date.now()}.zip`,
-      notes: createForm.notes
-    };
-
-    setBackups((prev) => [newBackup, ...prev]);
-    setCreateOpen(false);
-
-    setToast({
-      open: true,
-      severity: 'success',
-      message: 'Backup created (UI only). Backend backup action comes later.'
-    });
+  const handleCreateBackup = async () => {
+    try {
+      await createBackup(createForm);
+      setCreateOpen(false);
+      setToast({ open: true, severity: 'success', message: 'Backup created successfully.' });
+    } catch (err) {
+      setToast({ open: true, severity: 'error', message: err?.response?.data?.error || 'Create backup failed.' });
+    }
   };
 
   const openRestoreConfirm = (backup) => {
@@ -248,44 +158,47 @@ export default function AdminBackupRecovery() {
     setRestoreOpen(true);
   };
 
-  const restoreUIOnly = () => {
-    setRestoreOpen(false);
-
-    setToast({
-      open: true,
-      severity: 'warning',
-      message: 'Restore triggered (UI only). Backend restore action comes later.'
-    });
+  const handleRestoreBackup = async () => {
+    if (!restoreTarget) return;
+    try {
+      await restoreBackup(restoreTarget.id);
+      setRestoreOpen(false);
+      setRestoreTarget(null);
+      setToast({ open: true, severity: 'warning', message: 'Restore completed.' });
+    } catch (err) {
+      setToast({ open: true, severity: 'error', message: err?.response?.data?.error || 'Restore failed.' });
+    }
   };
 
-  const downloadUIOnly = () => {
-    setToast({
-      open: true,
-      severity: 'info',
-      message: 'Download endpoint will be added later.'
-    });
+  const handleDownload = async (id) => {
+    try {
+      await downloadBackup(id);
+      setToast({ open: true, severity: 'info', message: 'Backup download started.' });
+    } catch (err) {
+      setToast({ open: true, severity: 'error', message: err?.response?.data?.error || 'Download failed.' });
+    }
   };
 
-  const deleteBackupUIOnly = (id) => {
-    setBackups((prev) => prev.filter((b) => b.id !== id));
-    setToast({
-      open: true,
-      severity: 'info',
-      message: 'Backup deleted (UI only).'
-    });
+  const handleDelete = async (id) => {
+    try {
+      await removeBackup(id);
+      setToast({ open: true, severity: 'info', message: 'Backup deleted.' });
+    } catch (err) {
+      setToast({ open: true, severity: 'error', message: err?.response?.data?.error || 'Delete failed.' });
+    }
   };
 
-  const refreshUIOnly = () => {
-    setToast({
-      open: true,
-      severity: 'success',
-      message: 'Refreshed (UI only).'
-    });
+  const handleRefresh = async () => {
+    try {
+      await fetchBackups();
+      setToast({ open: true, severity: 'success', message: 'Backups refreshed.' });
+    } catch {
+      setToast({ open: true, severity: 'error', message: 'Refresh failed.' });
+    }
   };
 
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
-      {/* row 1 */}
       <Grid size={12}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -293,7 +206,7 @@ export default function AdminBackupRecovery() {
           justifyContent="space-between"
           alignItems={{ xs: 'stretch', sm: 'center' }}
         >
-          <Typography variant="h5">Backup & Recovery</Typography>
+          <AdminPageHeader title="Backup & Recovery" current="Backup & Recovery" />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <TextField
@@ -321,35 +234,35 @@ export default function AdminBackupRecovery() {
               </Select>
             </Stack>
 
-            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={refreshUIOnly}>
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={handleRefresh} disabled={busy || loading}>
               Refresh
             </Button>
 
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} disabled={busy}>
               Create Backup
             </Button>
           </Stack>
         </Stack>
       </Grid>
 
-      {/* stats */}
       <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-        <AdminSummaryCard title="Total Backups" value={stats.totalBackups} subtitle="All backup snapshots" loading={loading} />
+        <AdminSummaryCard title="Total Backups" value={stats.totalBackups || 0} subtitle="All backup snapshots" loading={loading} />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+        <AdminSummaryCard title="Latest Backup" value={stats.latestBackup || '-'} subtitle="Most recent snapshot" loading={loading} />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+        <AdminSummaryCard
+          title="Storage Used"
+          value={formatBytes(stats.storageUsedBytes || 0)}
+          subtitle="Total backup file sizes"
+          loading={loading}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+        <AdminSummaryCard title="Restore Points" value={stats.restorePoints || 0} subtitle="Backups ready to restore" loading={loading} />
       </Grid>
 
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-        <AdminSummaryCard title="Latest Backup" value={stats.latestBackup} subtitle="Most recent snapshot" loading={loading} />
-      </Grid>
-
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-        <AdminSummaryCard title="Storage Used" value={stats.storageUsed} subtitle="Total backup file sizes" loading={loading} />
-      </Grid>
-
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-        <AdminSummaryCard title="Restore Points" value={stats.restorePoints} subtitle="Backups ready to restore" loading={loading} />
-      </Grid>
-
-      {/* backups table */}
       <Grid size={{ xs: 12 }}>
         <MainCard content={false} sx={{ mt: 1.5 }}>
           <Stack sx={{ p: 2.5 }} spacing={2}>
@@ -359,7 +272,6 @@ export default function AdminBackupRecovery() {
                 Showing {loading ? '...' : filteredBackups.length} result(s)
               </Typography>
             </Stack>
-
             <Divider />
 
             <TableContainer component={Paper} variant="outlined">
@@ -376,26 +288,41 @@ export default function AdminBackupRecovery() {
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
-
                 <TableBody>
                   {loading
-                    ? Array.from({ length: 9 }).map((_, idx) => (
+                    ? Array.from({ length: 8 }).map((_, idx) => (
                         <TableRow key={idx}>
-                          <TableCell><Skeleton width={130} /></TableCell>
-                          <TableCell><Skeleton width={100} /></TableCell>
-                          <TableCell><Skeleton width={90} /></TableCell>
-                          <TableCell><Skeleton width={80} /></TableCell>
-                          <TableCell><Skeleton width={140} /></TableCell>
-                          <TableCell><Skeleton width="90%" /></TableCell>
-                          <TableCell><Skeleton width="80%" /></TableCell>
-                          <TableCell align="right"><Skeleton width={140} /></TableCell>
+                          <TableCell>
+                            <Skeleton width={130} />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton width={100} />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton width={90} />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton width={80} />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton width={140} />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton width="90%" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton width="80%" />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Skeleton width={140} />
+                          </TableCell>
                         </TableRow>
                       ))
                     : filteredBackups.map((b) => (
                         <TableRow key={b.id} hover>
                           <TableCell>{b.createdAt}</TableCell>
                           <TableCell>
-                            <Chip size="small" label={b.backupType.replace('_', ' ')} variant="outlined" icon={<StorageIcon />} />
+                            <Chip size="small" label={(b.backupType || '').replace('_', ' ')} variant="outlined" icon={<StorageIcon />} />
                           </TableCell>
                           <TableCell>
                             <StatusChip status={b.status} />
@@ -409,27 +336,31 @@ export default function AdminBackupRecovery() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                              {b.notes || '—'}
+                              {b.notes || '-'}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                              <Tooltip title="Download (later)">
-                                <IconButton size="small" onClick={downloadUIOnly}>
-                                  <FileDownloadIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title="Download backup">
+                                <span>
+                                  <IconButton size="small" onClick={() => handleDownload(b.id)} disabled={busy}>
+                                    <FileDownloadIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
-
                               <Tooltip title="Restore from this backup">
-                                <IconButton size="small" onClick={() => openRestoreConfirm(b)}>
-                                  <RestoreIcon fontSize="small" />
-                                </IconButton>
+                                <span>
+                                  <IconButton size="small" onClick={() => openRestoreConfirm(b)} disabled={busy || b.status !== 'ready'}>
+                                    <RestoreIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
-
-                              <Tooltip title="Delete (UI only)">
-                                <IconButton size="small" onClick={() => deleteBackupUIOnly(b.id)}>
-                                  <DeleteOutlineIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title="Delete backup">
+                                <span>
+                                  <IconButton size="small" onClick={() => handleDelete(b.id)} disabled={busy}>
+                                    <DeleteOutlineIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             </Stack>
                           </TableCell>
@@ -452,21 +383,17 @@ export default function AdminBackupRecovery() {
         </MainCard>
       </Grid>
 
-      {/* Create Backup Dialog */}
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Create Backup</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              This will create a snapshot of datasets and system configuration (UI only for now).
+              This will create a server snapshot of datasets and/or system configuration.
             </Typography>
 
             <Stack spacing={1}>
               <InputLabel>Backup Type</InputLabel>
-              <Select
-                value={createForm.backupType}
-                onChange={(e) => setCreateForm((p) => ({ ...p, backupType: e.target.value }))}
-              >
+              <Select value={createForm.backupType} onChange={(e) => setCreateForm((p) => ({ ...p, backupType: e.target.value }))}>
                 <MenuItem value="FULL">FULL</MenuItem>
                 <MenuItem value="DATASETS_ONLY">DATASETS ONLY</MenuItem>
                 <MenuItem value="CONFIG_ONLY">CONFIG ONLY</MenuItem>
@@ -486,46 +413,38 @@ export default function AdminBackupRecovery() {
             </Stack>
           </Stack>
         </DialogContent>
-
         <DialogActions>
           <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={createBackupUIOnly}>
-            Create Backup
+          <Button variant="contained" onClick={handleCreateBackup} disabled={busy} startIcon={busy ? <CircularProgress size={18} /> : null}>
+            {busy ? 'Creating...' : 'Create Backup'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Restore Confirmation Dialog */}
       <Dialog open={restoreOpen} onClose={() => setRestoreOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Confirm Restore</DialogTitle>
         <DialogContent dividers>
           {restoreTarget ? (
             <Stack spacing={1.5}>
-              <Alert severity="warning">
-                Restoring will overwrite current system data. This action is risky and should only be done by admins.
-              </Alert>
-
+              <Alert severity="warning">Restoring will overwrite current datasets and/or config for selected scope.</Alert>
               <Stack spacing={0.5}>
                 <Typography variant="caption" color="text.secondary">
                   Restore from backup
                 </Typography>
                 <Typography variant="body2">{restoreTarget.id}</Typography>
               </Stack>
-
               <Stack spacing={0.5}>
                 <Typography variant="caption" color="text.secondary">
                   Created
                 </Typography>
                 <Typography variant="body2">{restoreTarget.createdAt}</Typography>
               </Stack>
-
               <Stack spacing={0.5}>
                 <Typography variant="caption" color="text.secondary">
                   Type
                 </Typography>
-                <Typography variant="body2">{restoreTarget.backupType.replace('_', ' ')}</Typography>
+                <Typography variant="body2">{(restoreTarget.backupType || '').replace('_', ' ')}</Typography>
               </Stack>
-
               <Stack spacing={0.5}>
                 <Typography variant="caption" color="text.secondary">
                   Location
@@ -541,16 +460,20 @@ export default function AdminBackupRecovery() {
             </Typography>
           )}
         </DialogContent>
-
         <DialogActions>
           <Button onClick={() => setRestoreOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="warning" onClick={restoreUIOnly}>
-            Restore
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleRestoreBackup}
+            disabled={busy}
+            startIcon={busy ? <CircularProgress size={18} /> : null}
+          >
+            {busy ? 'Restoring...' : 'Restore'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Toast */}
       <Snackbar open={toast.open} autoHideDuration={2200} onClose={() => setToast((p) => ({ ...p, open: false }))}>
         <Alert onClose={() => setToast((p) => ({ ...p, open: false }))} severity={toast.severity} sx={{ width: '100%' }}>
           {toast.message}

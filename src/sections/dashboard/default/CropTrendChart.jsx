@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -32,13 +32,22 @@ function Legend({ items, onToggle }) {
   );
 }
 
-export default function CropTrendChart({ labels, series }) {
+export default function CropTrendChart({ labels, series, valueSuffix = '' }) {
   const theme = useTheme();
 
   const [visibility, setVisibility] = useState(Object.fromEntries(series.map((s) => [s.label, true])));
 
+  useEffect(() => {
+    setVisibility(Object.fromEntries(series.map((s) => [s.label, true])));
+  }, [series]);
+
   const toggleVisibility = (label) => {
     setVisibility((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const formatValue = (value) => {
+    const formatted = Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return valueSuffix ? `${formatted} ${valueSuffix}` : formatted;
   };
 
   const chartSeries = series.map((s, idx) => {
@@ -48,6 +57,7 @@ export default function CropTrendChart({ labels, series }) {
       type: 'line',
       data: s.data,
       label: s.label,
+      valueFormatter: (value) => formatValue(value),
       showMark: false,
       area: true,
       id: s.id,
@@ -59,6 +69,7 @@ export default function CropTrendChart({ labels, series }) {
       }
     };
   });
+  const visibleChartSeries = chartSeries.filter((s) => visibility[s.label] !== false);
 
   return (
     <>
@@ -66,18 +77,19 @@ export default function CropTrendChart({ labels, series }) {
         hideLegend
         grid={{ horizontal: true, vertical: false }}
         xAxis={[{ scaleType: 'point', data: labels }]}
-        yAxis={[{ disableLine: true }]}
+        yAxis={[
+          {
+            disableLine: true,
+            valueFormatter: (value) => formatValue(value)
+          }
+        ]}
         height={450}
         margin={{ top: 40, bottom: 0, right: 20, left: 5 }}
-        series={chartSeries}
+        series={visibleChartSeries}
       />
 
       <Legend
-        items={series.map((s, idx) => ({
-          label: s.label,
-          color: theme.vars.palette.primary[idx * 100 + 400],
-          visible: visibility[s.label]
-        }))}
+        items={chartSeries.map((s) => ({ label: s.label, color: s.color, visible: visibility[s.label] !== false }))}
         onToggle={toggleVisibility}
       />
     </>
@@ -86,5 +98,6 @@ export default function CropTrendChart({ labels, series }) {
 
 CropTrendChart.propTypes = {
   labels: PropTypes.array.isRequired,
-  series: PropTypes.array.isRequired
+  series: PropTypes.array.isRequired,
+  valueSuffix: PropTypes.string
 };

@@ -48,7 +48,15 @@ const admin = {
       url: '/admin/datasets',
       icon: icons.StorageOutlinedIcon,
       breadcrumbs: false
-    },
+    }
+  ]
+};
+
+export const superadminGovernance = {
+  id: 'group-superadmin-governance',
+  title: 'Superadmin',
+  type: 'group',
+  children: [
     {
       id: 'admin-system-config',
       title: 'System Configuration',
@@ -73,14 +81,6 @@ const admin = {
       icon: icons.BackupOutlinedIcon,
       breadcrumbs: false
     },
-    {
-      id: 'admin-integrations',
-      title: 'Integrations',
-      type: 'item',
-      url: '/admin/integrations',
-      icon: icons.HubOutlinedIcon,
-      breadcrumbs: false
-    }
   ]
 };
 

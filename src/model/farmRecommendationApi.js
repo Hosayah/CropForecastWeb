@@ -1,14 +1,7 @@
-import axios from 'axios';
+import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE ||
-    'https://seriate-calorifically-ray.ngrok-free.dev/recommendation',
-  withCredentials: true,
-  headers: {
-    'ngrok-skip-browser-warning': 'true'
-  }
-});
+const api = createApiClient(import.meta.env.VITE_API_BASE || API_BASES.recommendation);
 
 export const farmRecommendationApi = (farmId, params = {}) =>
   api.get(`/v1/farms/${farmId}`, { params });

@@ -1,21 +1,44 @@
 // project import
+import admin, { superadminGovernance } from './admin';
+import mlManagement from './mlManagement';
+import mlAdmin from './mlAdmin';
 import farmOwner from './farmOwner';
-import admin from './admin';
+import analyst from './analyst';
 
 // ==============================|| MENU ITEMS ||============================== //
 
-// 🔹 DEFAULT export (used by Breadcrumbs, route helpers, etc.)
+// Default export (used by Breadcrumbs, route helpers, etc.)
 const menuItems = {
-  items: [farmOwner, admin] // full tree, role-agnostic
+  items: [farmOwner, admin, superadminGovernance, mlAdmin, mlManagement, analyst] // full tree, role-agnostic
 };
 
 export default menuItems;
 
-// 🔹 ROLE-BASED export (used by Navigation sidebar)
+function withoutDatasets(group) {
+  if (!group?.children) return group;
+  return {
+    ...group,
+    children: group.children.filter((item) => String(item?.title || '').toLowerCase() !== 'datasets')
+  };
+}
+
+// Role-based export (used by Navigation sidebar)
 export function getMenuItems(role) {
-  const baseMenu = role === 'admin' ? admin : farmOwner;
+  let selectedMenus = [farmOwner];
+  const analystNoDatasets = withoutDatasets(analyst);
+  const mlManagementNoDatasets = withoutDatasets(mlManagement);
+
+  if (role === 'superadmin') {
+    selectedMenus = [admin, superadminGovernance, mlManagementNoDatasets, analystNoDatasets];
+  } else if (role === 'admin') {
+    selectedMenus = [admin, mlAdmin, analystNoDatasets];
+  } else if (role === 'analyst') {
+    selectedMenus = [analyst];
+  } else if (role === 'ml_engineer') {
+    selectedMenus = [mlManagement];
+  }
 
   return {
-    items: [baseMenu]
+    items: selectedMenus
   };
 }

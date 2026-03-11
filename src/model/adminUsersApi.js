@@ -1,12 +1,10 @@
 // features/adminUsers/model/adminUsersApi.js
 import axios from 'axios';
+import { API_BASES } from './apiBase';
 
 const api = axios.create({
-  baseURL: 'https://seriate-calorifically-ray.ngrok-free.dev/admin/v1/users',
-  withCredentials: true,
-  headers: {
-    'ngrok-skip-browser-warning': 'true'
-  }
+  baseURL: API_BASES.adminUsers,
+  withCredentials: true
 });
 
 export const listUsersApi = () => api.get('');

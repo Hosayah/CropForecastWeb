@@ -41,6 +41,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 // project imports
 import MainCard from 'components/MainCard';
+import AdminPageHeader from './components/AdminPageHeader';
 
 // 🔥 ViewModel
 import { useAdminAuditViewModel } from 'viewModel/useAdminAuditViewModel';
@@ -86,8 +87,6 @@ function ModuleChip({ module }) {
         return { label: 'DATASETS', color: 'warning' };
       case 'SYSTEM':
         return { label: 'SYSTEM', color: 'default' };
-      case 'SECURITY':
-        return { label: 'SECURITY', color: 'error' };
       default:
         return { label: module || 'OTHER', color: 'default' };
     }
@@ -118,7 +117,7 @@ function SeverityChip({ severity }) {
 // ==============================|| ADMIN AUDIT LOGS ||============================== //
 
 export default function AdminAuditLogs() {
-  const MODULES = useMemo(() => ['ALL', 'AUTH', 'USERS', 'DATASETS', 'SYSTEM', 'SECURITY'], []);
+  const MODULES = useMemo(() => ['ALL', 'AUTH', 'USERS', 'DATASETS', 'SYSTEM', 'ML', 'BACKUPS'], []);
   const SEVERITIES = useMemo(() => ['ALL', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], []);
 
   const [moduleFilter, setModuleFilter] = useState('ALL');
@@ -146,19 +145,20 @@ export default function AdminAuditLogs() {
       l.timestamp?.startsWith(todayStr)
     ).length;
 
-    const securityEvents = logs.filter(
-      (l) => l.module === 'SECURITY'
+    const authEvents = logs.filter(
+      (l) => l.module === 'AUTH'
     ).length;
 
     const adminActions = logs.filter(
       (l) => l.actor?.includes('@')
     ).length;
 
-    return { totalLogs, todayLogs, securityEvents, adminActions };
+    return { totalLogs, todayLogs, authEvents, adminActions };
   }, [logs]);
 
   const filteredLogs = useMemo(() => {
     let list = [...logs];
+    list = list.filter((l) => l.module !== 'SECURITY');
 
     if (moduleFilter !== 'ALL')
       list = list.filter((l) => l.module === moduleFilter);
@@ -199,7 +199,7 @@ export default function AdminAuditLogs() {
           justifyContent="space-between"
           alignItems={{ xs: 'stretch', sm: 'center' }}
         >
-          <Typography variant="h5">Audit Logs & Security Monitoring</Typography>
+          <AdminPageHeader title="Audit Logs & Security Monitoring" current="Audit Logs" />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <TextField
@@ -248,7 +248,7 @@ export default function AdminAuditLogs() {
       </Grid>
 
       <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-        <AdminSummaryCard title="Security Events" value={stats.securityEvents} subtitle="Unauthorized/blocked attempts" loading={loading} />
+        <AdminSummaryCard title="Auth Events" value={stats.authEvents} subtitle="Login and token events" loading={loading} />
       </Grid>
 
       <Grid size={{ xs: 12, sm: 6, lg: 3 }}>

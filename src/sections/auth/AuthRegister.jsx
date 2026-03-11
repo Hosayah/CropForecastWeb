@@ -13,8 +13,6 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
 
 // third-party
 import * as Yup from 'yup';
@@ -24,7 +22,6 @@ import { Formik } from 'formik';
 import IconButton from 'components/@extended/IconButton';
 import AnimateButton from 'components/@extended/AnimateButton';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
-import { PH_REGIONS } from 'data/phLocations';
 
 // assets
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
@@ -70,8 +67,6 @@ export default function AuthRegister() {
           firstname: '',
           lastname: '',
           email: '',
-          region: '',
-          province: '',
           password: '',
           confirmPassword: '',
         }}
@@ -80,7 +75,7 @@ export default function AuthRegister() {
             console.log('Submitting registration with values:', values);
             const res = await register(values);
             console.log('Message:', res.message); // This should be a Firebase User object
-            navigate('/verify-email');
+            navigate('/verify-email', { state: { email: values.email } });
             
           } catch (error) {
             setErrors({ submit: error.message });
@@ -92,22 +87,21 @@ export default function AuthRegister() {
           firstname: Yup.string().max(255).required('First Name is required'),
           lastname: Yup.string().max(255).required('Last Name is required'),
           email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
-          region: Yup.string().required('Region is required'),
-          province: Yup.string().required('Province is required'),
           password: Yup.string()
             .required('Password is required')
-            .test(
-              'no-leading-trailing-whitespace',
-              'Password cannot start or end with spaces',
-              (value) => value === value?.trim()
-            )
-            .min(6, 'Password must be more than 6 characters'),
+            .min(8, 'Password must be 8 to 128 characters long')
+            .max(128, 'Password must be 8 to 128 characters long')
+            .matches(/^\S+$/, 'Password cannot contain whitespace')
+            .matches(/[A-Z]/, 'Password must include at least one uppercase letter')
+            .matches(/[a-z]/, 'Password must include at least one lowercase letter')
+            .matches(/[0-9]/, 'Password must include at least one number')
+            .matches(/[^A-Za-z0-9]/, 'Password must include at least one special character'),
           confirmPassword: Yup.string()
             .required('Confirm Password is required')
             .oneOf([Yup.ref('password')], 'Passwords must match')
         })}
       >
-        {({ errors, handleBlur, handleChange, handleSubmit, touched, values, setFieldValue, setSubmitting, setErrors }) => (
+        {({ errors, handleBlur, handleChange, handleSubmit, touched, values }) => (
           <form noValidate onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               {/* First Name */}
@@ -170,65 +164,6 @@ export default function AuthRegister() {
                 </Stack>
                 {touched.email && errors.email && (
                   <FormHelperText error>{errors.email}</FormHelperText>
-                )}
-              </Grid>
-
-              {/* Region */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Stack sx={{ gap: 1 }}>
-                  <InputLabel>Region*</InputLabel>
-                  <Select
-                    name="region"
-                    value={values.region}
-                    onBlur={handleBlur}
-                    onChange={(e) => {
-                      setFieldValue('region', e.target.value);
-                      setFieldValue('province', '');
-                    }}
-                    error={Boolean(touched.region && errors.region)}
-                    displayEmpty
-                  >
-                    <MenuItem value="" disabled>
-                      Select Region
-                    </MenuItem>
-                    {Object.entries(PH_REGIONS).map(([key, region]) => (
-                      <MenuItem key={key} value={key}>
-                        {region.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </Stack>
-                {touched.region && errors.region && (
-                  <FormHelperText error>{errors.region}</FormHelperText>
-                )}
-              </Grid>
-
-              {/* Province */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Stack sx={{ gap: 1 }}>
-                  <InputLabel>Province*</InputLabel>
-                  <Select
-                    name="province"
-                    value={values.province}
-                    onBlur={handleBlur}
-                    onChange={handleChange}
-                    disabled={!values.region}
-                    error={Boolean(touched.province && errors.province)}
-                    displayEmpty
-                  >
-                    <MenuItem value="" disabled>
-                      Select Province
-                    </MenuItem>
-                    {values.region &&
-                      PH_REGIONS[values.region].provinces.map((province) => (
-                        <MenuItem key={province} value={province}>
-                          {province}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                </Stack>
-                {touched.province && errors.province && (
-                  <FormHelperText error>{errors.province}</FormHelperText>
                 )}
               </Grid>
 

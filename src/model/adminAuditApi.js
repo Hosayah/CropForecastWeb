@@ -1,11 +1,9 @@
 import axios from 'axios';
+import { API_BASES } from './apiBase';
 
 const api = axios.create({
-  baseURL: 'https://seriate-calorifically-ray.ngrok-free.dev/admin/v1/audit-logs',
-  withCredentials: true,
-  headers: {
-    'ngrok-skip-browser-warning': 'true'
-  }
+  baseURL: API_BASES.adminAuditLogs,
+  withCredentials: true
 });
 
 export const listAuditLogsApi = () => api.get('');
