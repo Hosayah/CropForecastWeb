@@ -1,7 +1,6 @@
-import { API_BASES } from './apiBase';
 import { createApiClient } from './createApiClient';
 
-const api = createApiClient(API_BASES.ml);
+const api = createApiClient('ml');
 
 export const listModelsApi = () => api.get('/models');
 export const getMlDashboardCompactApi = () => api.get('/dashboard/compact');

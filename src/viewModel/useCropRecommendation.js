@@ -4,6 +4,19 @@ import { farmRecommendationApi, generateFarmRecommendationApi } from '../model/f
 const CACHE_PREFIX = 'agrisense:recommendation:latest:';
 const CACHE_TTL_MS = 20_000;
 
+export function clearRecommendationCache() {
+  try {
+    const keysToDelete = [];
+    for (let index = 0; index < sessionStorage.length; index += 1) {
+      const key = sessionStorage.key(index);
+      if (key && key.startsWith(CACHE_PREFIX)) keysToDelete.push(key);
+    }
+    keysToDelete.forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // Ignore cache cleanup failures.
+  }
+}
+
 function cacheKey(farmId, season) {
   return `${CACHE_PREFIX}${String(farmId || '')}|${String(season || '')}`;
 }

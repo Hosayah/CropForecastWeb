@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { logoutApi } from '../model/authApi';
-import { API_BASES } from '../model/apiBase';
+import { authBaseUrlForTarget, logoutApi } from '../model/authApi';
+import { API_TARGETS, getPreferredApiTarget } from '../model/apiBase';
 
 const REMEMBER_ME_KEY = 'agrisense:remember_me';
 const SESSION_ACTIVE_KEY = 'agrisense:session_active';
@@ -30,11 +30,16 @@ export function useSession() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (!rememberMe) {
-        fetch(`${API_BASES.auth}/logout`, {
-          method: 'POST',
-          credentials: 'include',
-          keepalive: true
-        }).catch(() => {});
+        const preferredTarget = getPreferredApiTarget();
+        const targets =
+          preferredTarget === API_TARGETS.RENDER ? [API_TARGETS.RENDER, API_TARGETS.LOCALHOST] : [API_TARGETS.LOCALHOST, API_TARGETS.RENDER];
+        targets.forEach((target) => {
+          fetch(`${authBaseUrlForTarget(target)}/logout`, {
+            method: 'POST',
+            credentials: 'include',
+            keepalive: true
+          }).catch(() => {});
+        });
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);

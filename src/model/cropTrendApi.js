@@ -1,7 +1,6 @@
-import { API_BASES } from './apiBase';
 import { createApiClient } from './createApiClient';
 
-const api = createApiClient(import.meta.env.VITE_API_BASE || API_BASES.cropTrend);
+const api = createApiClient('cropTrend');
 const CACHE_PREFIX = 'agrisense:cropTrendCache:';
 const memoryCache = new Map();
 const inflightRequests = new Map();

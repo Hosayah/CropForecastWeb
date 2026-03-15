@@ -21,6 +21,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TablePagination from '@mui/material/TablePagination';
 import Skeleton from '@mui/material/Skeleton';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
@@ -115,7 +116,7 @@ function generateTempPassword() {
 
 export default function AdminUsers() {
   const { user } = useAuth();
-  const { users, stats, loading, error, fetchUsers, changeRole, toggleStatus, createUser } = useAdminUsersViewModel();
+  const { users, stats, pagination, loading, error, fetchUsers, changeRole, toggleStatus, createUser } = useAdminUsersViewModel();
   const isSuperadmin = user?.role === 'superadmin';
 
   const ROLE_FILTERS = useMemo(() => ['ALL', 'farm_owner', 'admin', 'ml_engineer', 'analyst'], []);
@@ -138,7 +139,7 @@ export default function AdminUsers() {
   });
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers({ page: 1, perPage: pagination.perPage });
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -272,7 +273,7 @@ export default function AdminUsers() {
             <Stack direction="row" alignItems="center" justifyContent="space-between">
               <Typography variant="h6">Users</Typography>
               <Typography variant="caption" color="text.secondary">
-                Showing {loading ? '...' : filteredUsers.length} result(s)
+                Showing {loading ? '...' : filteredUsers.length} result(s) of {pagination.total}
               </Typography>
             </Stack>
 
@@ -373,6 +374,20 @@ export default function AdminUsers() {
                   )}
                 </TableBody>
               </Table>
+              <TablePagination
+                component="div"
+                count={pagination.total}
+                page={Math.max(0, (pagination.page || 1) - 1)}
+                onPageChange={(_, nextPage) => fetchUsers({ page: nextPage + 1, perPage: pagination.perPage })}
+                rowsPerPage={pagination.perPage}
+                onRowsPerPageChange={(event) =>
+                  fetchUsers({
+                    page: 1,
+                    perPage: parseInt(event.target.value, 10) || 25
+                  })
+                }
+                rowsPerPageOptions={[10, 25, 50, 100]}
+              />
             </TableContainer>
           </Stack>
         </MainCard>

@@ -22,6 +22,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TablePagination from '@mui/material/TablePagination';
 
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -97,7 +98,7 @@ function StatusChip({ status }) {
 }
 
 export default function AdminBackupRecovery() {
-  const { backups, stats, loading, busy, fetchBackups, createBackup, restoreBackup, removeBackup, downloadBackup } =
+  const { backups, stats, pagination, loading, busy, fetchBackups, createBackup, restoreBackup, removeBackup, downloadBackup } =
     useAdminBackupViewModel();
 
   const [toast, setToast] = useState({ open: false, severity: 'success', message: '' });
@@ -115,7 +116,7 @@ export default function AdminBackupRecovery() {
   const [restoreTarget, setRestoreTarget] = useState(null);
 
   useEffect(() => {
-    fetchBackups();
+    fetchBackups({ page: 1, perPage: pagination.perPage });
   }, []);
 
   const filteredBackups = useMemo(() => {
@@ -190,7 +191,7 @@ export default function AdminBackupRecovery() {
 
   const handleRefresh = async () => {
     try {
-      await fetchBackups();
+      await fetchBackups({ force: true, page: pagination.page, perPage: pagination.perPage });
       setToast({ open: true, severity: 'success', message: 'Backups refreshed.' });
     } catch {
       setToast({ open: true, severity: 'error', message: 'Refresh failed.' });
@@ -269,7 +270,7 @@ export default function AdminBackupRecovery() {
             <Stack direction="row" alignItems="center" justifyContent="space-between">
               <Typography variant="h6">Backup History</Typography>
               <Typography variant="caption" color="text.secondary">
-                Showing {loading ? '...' : filteredBackups.length} result(s)
+                Showing {loading ? '...' : filteredBackups.length} result(s) of {pagination.total}
               </Typography>
             </Stack>
             <Divider />
@@ -378,6 +379,25 @@ export default function AdminBackupRecovery() {
                   )}
                 </TableBody>
               </Table>
+              <TablePagination
+                component="div"
+                count={pagination.total}
+                page={Math.max(0, (pagination.page || 1) - 1)}
+                onPageChange={(_, nextPage) =>
+                  fetchBackups({
+                    page: nextPage + 1,
+                    perPage: pagination.perPage
+                  })
+                }
+                rowsPerPage={pagination.perPage}
+                onRowsPerPageChange={(event) =>
+                  fetchBackups({
+                    page: 1,
+                    perPage: parseInt(event.target.value, 10) || 25
+                  })
+                }
+                rowsPerPageOptions={[10, 25, 50, 100]}
+              />
             </TableContainer>
           </Stack>
         </MainCard>

@@ -1,11 +1,7 @@
-import axios from 'axios';
-import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL: API_BASES.adminAuditLogs,
-  withCredentials: true
-});
+const api = createApiClient('adminAuditLogs');
 
-export const listAuditLogsApi = () => api.get('');
+export const listAuditLogsApi = (params = {}) => api.get('', { params });
 
 export default api;

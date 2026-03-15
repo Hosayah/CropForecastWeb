@@ -12,6 +12,7 @@ import {
   updateProfileApi,
   changePasswordApi
 } from '../model/authApi';
+import { clearUserScopedCaches, getLastSignedInUserId, setLastSignedInUserId } from '../model/sessionUserCache';
 
 export function useAuthViewModel() {
   const [user, setUser] = useState(null);
@@ -44,12 +45,16 @@ export function useAuthViewModel() {
       setLoading(true);
       setError(null);
 
-      await loginApi(email, password);
+      const loginResult = await loginApi(email, password);
+      const previousUid = getLastSignedInUserId();
+      const nextUid = String(loginResult?.user?.uid || '');
+      if (!previousUid || previousUid !== nextUid) {
+        clearUserScopedCaches();
+      }
+      setLastSignedInUserId(nextUid);
+      setUser(loginResult.user);
 
-      const meRes = await meApi();
-      setUser(meRes.data.user);
-
-      return { success: true, user: meRes.data.user };
+      return { success: true, user: loginResult.user };
     } catch (err) {
       const status = err.response?.status;
       const reason = err.response?.data?.reason;
@@ -92,14 +97,24 @@ export function useAuthViewModel() {
   const loadUser = async () => {
     try {
       const res = await meApi();
+      const nextUid = String(res?.data?.user?.uid || '');
+      const previousUid = getLastSignedInUserId();
+      if (nextUid && previousUid && previousUid !== nextUid) {
+        clearUserScopedCaches();
+      }
+      setLastSignedInUserId(nextUid);
       setUser(res.data.user);
     } catch {
+      clearUserScopedCaches();
+      setLastSignedInUserId('');
       setUser(null);
     }
   };
 
   const logout = async () => {
     await logoutApi();
+    clearUserScopedCaches();
+    setLastSignedInUserId('');
     setUser(null);
   };
 

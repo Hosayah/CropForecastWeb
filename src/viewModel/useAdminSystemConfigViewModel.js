@@ -4,11 +4,12 @@ import {
   updateSystemConfigApi
 } from '../model/adminSystemConfigApi';
 import {
-  getForecastSnapshotApi,
+  getForecastSnapshotMetadataApi,
   generateForecastSnapshotApi
 } from '../model/cropTrendApi';
 import { listModelsApi } from '../model/mlApi';
 import { listDatasetsApi } from '../model/adminDatasetsApi';
+import { getKnowledgeStatusApi } from '../model/adminKnowledgeApi';
 
 function extractApiError(err, fallback) {
   const data = err?.response?.data;
@@ -29,6 +30,8 @@ export function useAdminSystemConfigViewModel() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [modelVersions, setModelVersions] = useState([]);
   const [datasetVersions, setDatasetVersions] = useState([]);
+  const [knowledgeStatus, setKnowledgeStatus] = useState(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -59,7 +62,7 @@ export function useAdminSystemConfigViewModel() {
   const fetchLatestSnapshot = async () => {
     setSnapshotLoading(true);
     try {
-      const res = await getForecastSnapshotApi();
+      const res = await getForecastSnapshotMetadataApi();
       const payload = res.data || {};
 
       if (payload.status === 'no_snapshot') {
@@ -118,6 +121,19 @@ export function useAdminSystemConfigViewModel() {
     }
   };
 
+  const fetchKnowledgeStatus = async () => {
+    setKnowledgeLoading(true);
+    try {
+      const res = await getKnowledgeStatusApi();
+      setKnowledgeStatus(res.data || null);
+      return { success: true, data: res.data || null };
+    } catch (err) {
+      return { success: false, error: extractApiError(err, 'Failed to load knowledge corpus status') };
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  };
+
   return {
     config,
     loading,
@@ -133,6 +149,9 @@ export function useAdminSystemConfigViewModel() {
     optionsLoading,
     modelVersions,
     datasetVersions,
-    fetchVersionOptions
+    fetchVersionOptions,
+    knowledgeStatus,
+    knowledgeLoading,
+    fetchKnowledgeStatus
   };
 }

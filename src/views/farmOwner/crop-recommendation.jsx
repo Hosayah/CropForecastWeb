@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -13,12 +13,23 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
+import TextField from '@mui/material/TextField';
+import Divider from '@mui/material/Divider';
+import CircularProgress from '@mui/material/CircularProgress';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Box from '@mui/material/Box';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import MainCard from 'components/MainCard';
-import CropSummary from 'components/cards/statistics/CropSummary';
 import formatRelativeTime from 'utils/helper/formatDateTime';
 
 import { useCropRecommendation } from 'viewModel/useCropRecommendation';
+import { useRecommendationChat } from 'viewModel/useRecommendationChat';
 import { useFarms } from 'viewModel/useFarms';
 import { usePreferences } from 'hooks/usePreferences';
 import {
@@ -31,6 +42,18 @@ import {
 
 const RECOMMENDATION_FARM_STORAGE_KEY = 'agrisense:recommendation_farm_id';
 const OUTLOOK_PAGE_SIZE = 10;
+
+function getChatPromptSuggestions(focusCrop, dominantCrop) {
+  const crop = String(focusCrop || '').trim() || 'this crop';
+  const historicalCrop = String(dominantCrop || '').trim() || 'my province';
+  const shortCrop = crop.length > 34 ? `${crop.slice(0, 31)}...` : crop;
+  const shortHistoricalCrop = historicalCrop.length > 28 ? `${historicalCrop.slice(0, 25)}...` : historicalCrop;
+  return [
+    `Why is ${shortCrop} top-ranked?`,
+    `Best practices for ${shortCrop}?`,
+    `Why is ${shortHistoricalCrop} dominant?`
+  ];
+}
 
 function normalizeRiskLabel(value) {
   return String(value || '')
@@ -45,7 +68,26 @@ function riskChipColor(value) {
   if (normalized === 'HIGH') return 'success';
   if (normalized === 'RISK-PRONE') return 'warning';
   if (normalized === 'DECLINING') return 'error';
+  if (normalized === 'LOW') return 'success';
   return 'default';
+}
+
+function metricToneForRisk(value) {
+  const normalized = normalizeRiskLabel(value);
+  if (normalized === 'LOW' || normalized === 'HIGH') return 'success';
+  if (normalized === 'RISK-PRONE') return 'warning';
+  if (normalized === 'DECLINING') return 'error';
+  return 'neutral';
+}
+
+function uniqueSources(sources) {
+  const seen = new Set();
+  return (Array.isArray(sources) ? sources : []).filter((source) => {
+    const key = `${source?.document_id || source?.title || 'source'}|${source?.page_start || ''}|${source?.page_end || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function CropRecommendationPageSkeleton() {
@@ -143,6 +185,63 @@ function RankedCardList({ title, items, secondaryLabel = 'Latest forecast', high
   );
 }
 
+function RecommendationMetricCard({ eyebrow, title, value, supporting, tone = 'primary' }) {
+  const toneMap = {
+    primary: { bar: 'primary.main', bg: 'primary.lighter' },
+    success: { bar: 'success.main', bg: 'success.lighter' },
+    warning: { bar: 'warning.main', bg: 'warning.lighter' },
+    neutral: { bar: 'secondary.main', bg: 'grey.100' }
+  };
+  const palette = toneMap[tone] || toneMap.primary;
+
+  return (
+    <MainCard contentSX={{ p: 2.25, height: '100%' }}>
+      <Stack spacing={1.25} sx={{ height: '100%' }}>
+        <Box
+          sx={{
+            width: 72,
+            height: 6,
+            borderRadius: 999,
+            bgcolor: palette.bar
+          }}
+        />
+        <Typography variant="overline" color="text.secondary">
+          {eyebrow}
+        </Typography>
+        <Typography variant="h4" sx={{ lineHeight: 1.15 }}>
+          {value}
+        </Typography>
+        <Typography variant="subtitle2">{title}</Typography>
+        <Box
+          sx={{
+            mt: 'auto',
+            px: 1.25,
+            py: 0.875,
+            borderRadius: 2,
+            bgcolor: palette.bg
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {supporting}
+          </Typography>
+        </Box>
+      </Stack>
+    </MainCard>
+  );
+}
+
+function formatSourceSubtitle(source) {
+  const parts = [];
+  if (source?.authority) parts.push(source.authority);
+  if (source?.category) parts.push(source.category);
+  if (Number.isFinite(Number(source?.page_start))) {
+    const start = Number(source.page_start);
+    const end = Number(source?.page_end || start);
+    parts.push(start === end ? `Page ${start}` : `Pages ${start}-${end}`);
+  }
+  return parts.join(' • ');
+}
+
 export default function CropRecommendationPage() {
   const [tab, setTab] = useState('recommendation');
   const [season, setSeason] = useState('2026Q1');
@@ -186,6 +285,29 @@ export default function CropRecommendationPage() {
   const { recommendation, loading, generating, isBackgroundRefreshing, lastUpdatedAt, error, generate } = useCropRecommendation({
     farmId: selectedFarmId,
     season
+  });
+  const optimalCrops = recommendation?.optimal_crops || [];
+  const commonlyPlanted = recommendation?.commonly_planted || [];
+  const overview = recommendation?.overview;
+  const recSeason = recommendation?.season;
+  const province = recommendation?.province;
+  const lastGenerated = recommendation?.createdAt;
+
+  const topOptimal = optimalCrops[0];
+  const dominantCrop = commonlyPlanted[0];
+  const hasMismatch = Boolean(recommendation && recSeason !== season);
+  const hasLiveRecommendation = Boolean(recommendation && !hasMismatch && !hasNoFarms);
+  const {
+    question: chatQuestion,
+    setQuestion: setChatQuestion,
+    response: chatResponse,
+    loading: chatLoading,
+    error: chatError,
+    askQuestion: askChatQuestion
+  } = useRecommendationChat({
+    farmId: selectedFarmId,
+    season,
+    enabled: hasLiveRecommendation
   });
 
   useEffect(() => {
@@ -338,18 +460,10 @@ export default function CropRecommendationPage() {
     }
   };
 
-  const optimalCrops = recommendation?.optimal_crops || [];
-  const commonlyPlanted = recommendation?.commonly_planted || [];
-  const overview = recommendation?.overview;
-  const recSeason = recommendation?.season;
-  const province = recommendation?.province;
-  const lastGenerated = recommendation?.createdAt;
 
-  const topOptimal = optimalCrops[0];
-  const dominantCrop = commonlyPlanted[0];
-  const hasMismatch = recommendation && recSeason !== season;
   const relativeTime = lastGenerated ? `(${formatRelativeTime(lastGenerated)})` : '';
   const recommendationUpdatedLabel = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleString() : null;
+  const chatPromptSuggestions = getChatPromptSuggestions(topOptimal?.crop, dominantCrop?.crop);
 
   const recommendationRankItems = optimalCrops.map((item) => ({
     crop: item.crop,
@@ -479,26 +593,86 @@ export default function CropRecommendationPage() {
 
           {recommendation && !hasMismatch && !hasNoFarms && (
             <>
+              <Grid size={12}>
+                <MainCard contentSX={{ p: 0 }}>
+                  <Box
+                    sx={{
+                      p: { xs: 2.5, md: 3 },
+                      borderRadius: 3,
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.success.lighter} 0%, ${theme.palette.primary.lighter} 55%, ${theme.palette.background.paper} 100%)`
+                    }}
+                  >
+                    <Stack spacing={1.5}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                        <Box>
+                          <Typography variant="overline" color="success.dark">
+                            Season-ready recommendation
+                          </Typography>
+                          <Typography variant="h4" sx={{ mt: 0.5, lineHeight: 1.15, wordBreak: 'break-word', maxWidth: 720 }}>
+                            {topOptimal?.crop || 'Recommendation ready for review'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 720 }}>
+                            This view blends your farm profile, seasonal fit, and historical crop context so you can review what looks strongest before planting.
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                          {topOptimal ? <Chip label={`Top crop: ${topOptimal.crop}`} color="success" /> : null}
+                          {topOptimal?.risk ? (
+                            <Chip label={`Risk: ${topOptimal.risk}`} variant="outlined" color={riskChipColor(topOptimal.risk)} sx={{ bgcolor: 'background.paper' }} />
+                          ) : null}
+                          <Chip label={`Season: ${recSeason || season}`} variant="outlined" />
+                        </Stack>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                </MainCard>
+              </Grid>
+
               {topOptimal && (
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                  <CropSummary title="Top Optimal Crop" count={topOptimal.crop} extra={`Score: ${topOptimal.score}`} />
+                  <RecommendationMetricCard
+                    eyebrow="Top pick"
+                    title="Best crop for this season"
+                    value={topOptimal.crop}
+                    supporting={`Suitability score ${topOptimal.score}`}
+                    tone="success"
+                  />
                 </Grid>
               )}
 
               {topOptimal && (
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                  <CropSummary title="Risk Outlook" count={topOptimal.risk} extra="Based on farm conditions" />
+                  <RecommendationMetricCard
+                    eyebrow="Risk outlook"
+                    title="Expected field confidence"
+                    value={topOptimal.risk}
+                    supporting="Based on farm conditions"
+                    tone={metricToneForRisk(topOptimal.risk)}
+                  />
                 </Grid>
               )}
 
               {dominantCrop && (
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                  <CropSummary title="Dominant Crop" count={dominantCrop.crop} extra={`${Math.round(dominantCrop.historical_share * 100)}% historical share`} />
+                  <RecommendationMetricCard
+                    eyebrow="Historical baseline"
+                    title="Most established crop locally"
+                    value={dominantCrop.crop}
+                    supporting={`${Math.round(dominantCrop.historical_share * 100)}% historical share`}
+                    tone="primary"
+                  />
                 </Grid>
               )}
 
               <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                <CropSummary title="Season" count={recSeason || season} extra="Forecast horizon" />
+                <RecommendationMetricCard
+                  eyebrow="Season window"
+                  title="Forecast horizon in view"
+                  value={recSeason || season}
+                  supporting="Use this for quarter-specific decisions"
+                  tone="neutral"
+                />
               </Grid>
 
               <Grid size={{ xs: 12, lg: 6 }}>
@@ -510,10 +684,202 @@ export default function CropRecommendationPage() {
               </Grid>
 
               <Grid size={12}>
-                <MainCard title="Recommendation Insight">
-                  <Typography variant="body2">
-                    {overview || `Based on farm conditions in ${province} for ${recSeason}, several crops show strong suitability.`}
-                  </Typography>
+                <MainCard title="Recommendation Insight" contentSX={{ p: 0 }}>
+                  <Box
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 3,
+                      bgcolor: 'grey.50',
+                      background: (theme) =>
+                        `linear-gradient(180deg, ${theme.palette.common.white} 0%, ${theme.palette.grey[50]} 100%)`
+                    }}
+                  >
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                        {topOptimal ? <Chip size="small" color="success" label={`${topOptimal.crop} looks strongest`} /> : null}
+                        {dominantCrop ? (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={`${dominantCrop.crop} remains historically strong`}
+                          />
+                        ) : null}
+                      </Stack>
+                      <Typography variant="body2">
+                        {overview || `Based on farm conditions in ${province} for ${recSeason}, several crops show strong suitability.`}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </MainCard>
+              </Grid>
+
+              <Grid size={12}>
+                <MainCard title="Farmer Q&A" contentSX={{ p: 0 }}>
+                  <Stack spacing={2}>
+                    <Box
+                      sx={{
+                        px: 2.5,
+                        pt: 2.5,
+                        pb: 1.5,
+                        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+                        background: (theme) =>
+                          `linear-gradient(180deg, ${theme.palette.primary.lighter} 0%, ${theme.palette.background.paper} 100%)`
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Typography variant="subtitle1">Ask AgriSense to explain the recommendation</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Questions stay tied to your saved recommendation, crop ranking context, and supporting references from the knowledge base.
+                        </Typography>
+                      </Stack>
+                    </Box>
+
+                    <Box sx={{ px: 2.5, pb: 2.5 }}>
+                      <Stack spacing={2}>
+
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                          {chatPromptSuggestions.map((prompt) => (
+                            <Chip
+                              key={prompt}
+                              label={prompt}
+                              variant="outlined"
+                              onClick={() => setChatQuestion(prompt)}
+                              sx={{ borderRadius: 999, bgcolor: 'background.paper' }}
+                            />
+                          ))}
+                        </Stack>
+
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
+                          <TextField
+                            fullWidth
+                            multiline
+                            minRows={3}
+                            maxRows={6}
+                            label="Ask about your farm recommendation"
+                            placeholder={chatPromptSuggestions[0]}
+                            value={chatQuestion}
+                            onChange={(event) => setChatQuestion(event.target.value)}
+                          />
+                          <Button
+                            variant="contained"
+                            onClick={askChatQuestion}
+                            disabled={chatLoading || !chatQuestion.trim()}
+                            sx={{ minWidth: { xs: '100%', sm: 160 }, alignSelf: { xs: 'stretch', sm: 'center' } }}
+                          >
+                            {chatLoading ? (
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <CircularProgress size={18} color="inherit" />
+                                <span>Thinking...</span>
+                              </Stack>
+                            ) : (
+                              'Ask'
+                            )}
+                          </Button>
+                        </Stack>
+
+                        {chatError ? (
+                          <Alert severity="error">
+                            {chatError?.response?.data?.error || 'Unable to generate an answer right now.'}
+                          </Alert>
+                        ) : null}
+
+                        {chatResponse ? (
+                          <Stack spacing={2}>
+                            <Box
+                              sx={{
+                                p: 2.25,
+                                borderRadius: 2.5,
+                                bgcolor: 'grey.50',
+                                border: (theme) => `1px solid ${theme.palette.divider}`
+                              }}
+                            >
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                AgriSense Answer
+                              </Typography>
+                              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                {chatResponse?.answer || 'No answer was returned.'}
+                              </Typography>
+                            </Box>
+
+                            <Divider />
+
+                            <Stack spacing={1}>
+                              <Typography variant="subtitle2">Grounded Sources</Typography>
+                              {uniqueSources(chatResponse?.sources).length > 0 ? (
+                                <List disablePadding>
+                                  {uniqueSources(chatResponse?.sources).map((source, index) => (
+                                    <ListItem
+                                      key={`${source?.chunk_id || source?.document_id || 'source'}-${index}`}
+                                      disableGutters
+                                      sx={{
+                                        py: 1.25,
+                                        px: 1.5,
+                                        mb: 1,
+                                        borderRadius: 2.5,
+                                        bgcolor: 'grey.50',
+                                        border: (theme) => `1px solid ${theme.palette.divider}`,
+                                        alignItems: 'flex-start'
+                                      }}
+                                    >
+                                      <ListItemText
+                                        primary={source?.title || source?.document_id || `Source ${index + 1}`}
+                                        secondary={
+                                          <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              {formatSourceSubtitle(source)}
+                                            </Typography>
+                                            {source?.excerpt ? (
+                                              <Typography variant="body2" color="text.secondary">
+                                                {source.excerpt}
+                                              </Typography>
+                                            ) : null}
+                                          </Stack>
+                                        }
+                                      />
+                                    </ListItem>
+                                  ))}
+                                </List>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  No source citations were returned for this answer.
+                                </Typography>
+                              )}
+                            </Stack>
+
+                            <Accordion disableGutters sx={{ borderRadius: 2.5, '&:before': { display: 'none' } }}>
+                              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                <Typography variant="subtitle2">Technical Details</Typography>
+                              </AccordionSummary>
+                              <AccordionDetails>
+                                <Stack spacing={1}>
+                                  {chatResponse?.context?.focusCrop ? (
+                                    <Typography variant="body2">
+                                      Focus crop: <strong>{chatResponse.context.focusCrop}</strong>
+                                    </Typography>
+                                  ) : null}
+                                  <Typography variant="body2">
+                                    Provider: <strong>{chatResponse?.metadata?.provider || 'Unknown'}</strong>
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Model: <strong>{chatResponse?.metadata?.model || 'Unknown'}</strong>
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Retrieval: <strong>{chatResponse?.metadata?.retrievalStrategy || 'Unknown'}</strong>
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Sources used: <strong>{chatResponse?.metadata?.sourceCount ?? 0}</strong>
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Grounded: <strong>{chatResponse?.metadata?.grounded ? 'Yes' : 'No'}</strong>
+                                  </Typography>
+                                </Stack>
+                              </AccordionDetails>
+                            </Accordion>
+                          </Stack>
+                        ) : null}
+                      </Stack>
+                    </Box>
+                  </Stack>
                 </MainCard>
               </Grid>
             </>
@@ -615,3 +981,7 @@ export default function CropRecommendationPage() {
     </Grid>
   );
 }
+
+
+
+

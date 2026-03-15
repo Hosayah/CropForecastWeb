@@ -21,6 +21,7 @@ import MainCard from 'components/MainCard';
 import MlSummaryCard from 'views/ml/components/MlSummaryCard';
 import { getPerformanceTrendApi, listModelsApi, listValidationJobsApi } from 'model/mlApi';
 import { listDatasetsApi } from 'model/adminDatasetsApi';
+import { getKnowledgeStatusApi } from 'model/adminKnowledgeApi';
 
 const ACTIVE_STATUS = 'active';
 
@@ -44,14 +45,20 @@ export default function MlDashboard() {
   const [activeModel, setActiveModel] = useState(null);
   const [activeDataset, setActiveDataset] = useState(null);
   const [trendRows, setTrendRows] = useState([]);
+  const [knowledgeStatus, setKnowledgeStatus] = useState(null);
 
   const fetchDashboard = async () => {
     setLoading(true);
     setError('');
     try {
-      const [modelsRes, datasetsRes] = await Promise.all([listModelsApi(), listDatasetsApi()]);
+      const [modelsRes, datasetsRes, knowledgeRes] = await Promise.all([
+        listModelsApi(),
+        listDatasetsApi(),
+        getKnowledgeStatusApi()
+      ]);
       const list = modelsRes?.data?.data?.models || [];
       const datasets = datasetsRes?.data?.datasets || [];
+      const knowledgePayload = knowledgeRes?.data || null;
 
       const normalizedModels = list.map((m) => ({
         ...m,
@@ -90,6 +97,7 @@ export default function MlDashboard() {
       setCounts({ registeredModels: normalizedModels.length, runningJobs });
       setModels(normalizedModels.slice(0, 6));
       setTrendRows(trends.slice(0, 6));
+      setKnowledgeStatus(knowledgePayload);
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error || 'Failed to load ML dashboard');
     } finally {
@@ -143,6 +151,46 @@ export default function MlDashboard() {
       </Grid>
       <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
         <MlSummaryCard title="Running Jobs" value={counts.runningJobs || 0} subtitle="Queued or running validations" loading={loading} />
+      </Grid>
+
+      <Grid size={{ xs: 12, lg: 6 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} flexWrap="wrap">
+              <Typography variant="h6">Knowledge Corpus</Typography>
+              {loading ? (
+                <Skeleton width={96} />
+              ) : (
+                <Chip
+                  size="small"
+                  label={knowledgeStatus?.ready ? 'Ready' : 'Not Ready'}
+                  color={knowledgeStatus?.ready ? 'success' : 'warning'}
+                  variant="outlined"
+                />
+              )}
+            </Stack>
+
+            {loading ? (
+              <>
+                <Skeleton width="42%" />
+                <Skeleton width="58%" />
+                <Skeleton width="65%" />
+              </>
+            ) : (
+              <>
+                <Typography variant="body2">
+                  {knowledgeStatus?.processed?.documentCount ?? 0} documents and {knowledgeStatus?.processed?.chunkCount ?? 0} chunks are available for grounded answers.
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Provider: {knowledgeStatus?.provider?.name || '-'} | Model: {knowledgeStatus?.provider?.model || '-'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Raw source files: {knowledgeStatus?.raw?.fileCount ?? 0} | Corpus version: {knowledgeStatus?.corpusVersion || '-'}
+                </Typography>
+              </>
+            )}
+          </Stack>
+        </MainCard>
       </Grid>
 
       {error ? (

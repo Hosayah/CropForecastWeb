@@ -1,12 +1,8 @@
-import axios from 'axios';
-import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL: API_BASES.adminBackups,
-  withCredentials: true
-});
+const api = createApiClient('adminBackups');
 
-export const listBackupsApi = () => api.get('');
+export const listBackupsApi = (params = {}) => api.get('', { params });
 export const createBackupApi = (payload) => api.post('', payload);
 export const restoreBackupApi = (id) => api.post(`/${id}/restore`);
 export const deleteBackupApi = (id) => api.delete(`/${id}`);

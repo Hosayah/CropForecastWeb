@@ -1,13 +1,8 @@
-import axios from 'axios';
-import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL: API_BASES.adminDashboard,
-  withCredentials: true
-});
+const api = createApiClient('adminDashboard');
 
-export const getAdminDashboardCompactApi = (module = 'ALL') =>
-  api.get('/compact', { params: { module } });
+export const getAdminDashboardCompactApi = (module = 'ALL') => api.get('/compact', { params: { module } });
 
 export const getAdminDashboardSummaryApi = () => api.get('/summary');
 

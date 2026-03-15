@@ -1,13 +1,9 @@
-import axios from 'axios';
-import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL: API_BASES.adminDatasets,
-  withCredentials: true
-});
+const api = createApiClient('adminDatasets');
 
 // LIST
-export const listDatasetsApi = () => api.get('');
+export const listDatasetsApi = (params = {}) => api.get('', { params });
 
 // UPLOAD
 export const uploadDatasetApi = (formData) =>

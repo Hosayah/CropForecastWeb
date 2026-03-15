@@ -33,7 +33,10 @@ export default function AdminSystemConfig() {
     latestSnapshot,
     snapshotStatus,
     fetchLatestSnapshot,
-    generateSnapshot
+    generateSnapshot,
+    knowledgeStatus,
+    knowledgeLoading,
+    fetchKnowledgeStatus
   } = useAdminSystemConfigViewModel();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -58,6 +61,7 @@ export default function AdminSystemConfig() {
   useEffect(() => {
     fetchConfig();
     fetchLatestSnapshot();
+    fetchKnowledgeStatus();
   }, []);
 
   useEffect(() => {
@@ -291,7 +295,7 @@ export default function AdminSystemConfig() {
         <AdminPageHeader title="System Configuration (Power Admin Mode)" current="System Configuration" />
       </Grid>
 
-      <Grid size={{ xs: 12, md: 4 }}>
+      <Grid size={{ xs: 12, md: 3 }}>
         <MainCard content={false}>
           <Stack sx={{ p: 2.5 }} spacing={1.25}>
             <Typography variant="subtitle2" color="text.secondary">System Status</Typography>
@@ -311,7 +315,7 @@ export default function AdminSystemConfig() {
         </MainCard>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 4 }}>
+      <Grid size={{ xs: 12, md: 3 }}>
         <MainCard content={false}>
           <Stack sx={{ p: 2.5 }} spacing={1.25}>
             <Typography variant="subtitle2" color="text.secondary">Current Versions</Typography>
@@ -330,7 +334,7 @@ export default function AdminSystemConfig() {
         </MainCard>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 4 }}>
+      <Grid size={{ xs: 12, md: 3 }}>
         <MainCard content={false}>
           <Stack sx={{ p: 2.5 }} spacing={1.25}>
             <Typography variant="subtitle2" color="text.secondary">Snapshot Status</Typography>
@@ -350,6 +354,31 @@ export default function AdminSystemConfig() {
             <Typography variant="caption" color="text.secondary">
               {latestSnapshot?.snapshotId ? `ID: ${latestSnapshot.snapshotId}` : 'No generated snapshot yet'}
             </Typography>
+          </Stack>
+        </MainCard>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 3 }}>
+        <MainCard content={false}>
+          <Stack sx={{ p: 2.5 }} spacing={1.25}>
+            <Typography variant="subtitle2" color="text.secondary">Knowledge Corpus</Typography>
+            {knowledgeLoading ? (
+              <>
+                <Skeleton width="42%" />
+                <Skeleton width="65%" />
+              </>
+            ) : (
+              <>
+                <Chip
+                  label={knowledgeStatus?.ready ? 'READY' : 'NOT READY'}
+                  color={knowledgeStatus?.ready ? 'success' : 'warning'}
+                  variant="outlined"
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Documents: {knowledgeStatus?.processed?.documentCount ?? 0} | Chunks: {knowledgeStatus?.processed?.chunkCount ?? 0}
+                </Typography>
+              </>
+            )}
           </Stack>
         </MainCard>
       </Grid>

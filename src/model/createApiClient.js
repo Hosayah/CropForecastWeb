@@ -1,17 +1,25 @@
 import axios from 'axios';
-import { API_BASES } from './apiBase';
+import { getNamespaceTarget, resolveApiBase } from './apiBase';
 
-let refreshPromise = null;
+const refreshPromises = new Map();
 let maintenanceEventDispatched = false;
 
 function shouldBypassRefresh(url = '') {
   return url.includes('/login') || url.includes('/register') || url.includes('/refresh') || url.includes('/logout');
 }
 
-export function createApiClient(baseURL) {
+export function createApiClient(namespace, options = {}) {
+  const forcedTarget = options.forcedTarget || null;
   const client = axios.create({
-    baseURL,
+    baseURL: resolveApiBase(namespace, forcedTarget),
     withCredentials: true
+  });
+
+  client.interceptors.request.use((config) => {
+    const resolvedTarget = getNamespaceTarget(namespace, forcedTarget);
+    config.baseURL = resolveApiBase(namespace, resolvedTarget);
+    config._agrisenseTarget = resolvedTarget;
+    return config;
   });
 
   client.interceptors.response.use(
@@ -41,14 +49,16 @@ export function createApiClient(baseURL) {
       originalRequest._retry = true;
 
       try {
-        if (!refreshPromise) {
-          refreshPromise = axios
-            .post(`${API_BASES.auth}/refresh`, {}, { withCredentials: true })
+        const requestTarget = originalRequest?._agrisenseTarget || getNamespaceTarget(namespace, forcedTarget);
+        if (!refreshPromises.has(requestTarget)) {
+          const refreshPromise = axios
+            .post(resolveApiBase('auth', requestTarget), {}, { withCredentials: true })
             .finally(() => {
-              refreshPromise = null;
+              refreshPromises.delete(requestTarget);
             });
+          refreshPromises.set(requestTarget, refreshPromise);
         }
-        await refreshPromise;
+        await refreshPromises.get(requestTarget);
         return client(originalRequest);
       } catch (refreshError) {
         return Promise.reject(refreshError);

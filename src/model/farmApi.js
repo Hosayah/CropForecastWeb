@@ -1,7 +1,6 @@
-import { API_BASES } from './apiBase';
 import { createApiClient } from './createApiClient';
 
-const api = createApiClient(import.meta.env.VITE_API_BASE || API_BASES.farms);
+const api = createApiClient('farms');
 
 export const listFarmsApi = () => api.get('/v1');
 export const createFarmApi = (data) => api.post('/v1', data);

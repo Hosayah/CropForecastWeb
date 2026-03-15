@@ -1,10 +1,6 @@
-import axios from 'axios';
-import { API_BASES } from './apiBase';
+import { createApiClient } from './createApiClient';
 
-const api = axios.create({
-  baseURL: API_BASES.adminSystemConfig,
-  withCredentials: true
-});
+const api = createApiClient('adminSystemConfig');
 
 export const getSystemConfigApi = () => api.get('');
 export const updateSystemConfigApi = (data) => api.patch('', data);

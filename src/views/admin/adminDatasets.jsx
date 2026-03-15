@@ -13,6 +13,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { InputLabel } from '@mui/material';
 import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -30,6 +31,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TablePagination from '@mui/material/TablePagination';
 
 // icons
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -77,6 +79,8 @@ export default function AdminDatasets() {
   const { user } = useAuth();
   const {
     datasets,
+    stats,
+    pagination,
     loading,
     fetchDatasets,
     uploadDataset,
@@ -95,8 +99,10 @@ export default function AdminDatasets() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmActivateOpen, setConfirmActivateOpen] = useState(false);
   const [selectedDataset, setSelectedDataset] = useState(null);
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -104,7 +110,6 @@ export default function AdminDatasets() {
   const [version, setVersion] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   const [toast, setToast] = useState({
     open: false,
@@ -113,41 +118,19 @@ export default function AdminDatasets() {
   });
 
   useEffect(() => {
-    fetchDatasets();
+    fetchDatasets({ page: 1, perPage: pagination.perPage });
   }, []);
-
-  /* ================= STATS ================= */
-
-  const stats = useMemo(
-    () => ({
-      total: datasets.length,
-      active: datasets.filter((d) => d.status === 'active').length,
-      archived: datasets.filter((d) => d.status === 'archived').length
-    }),
-    [datasets]
-  );
-
-  const categoryOptions = useMemo(() => {
-    const values = new Set();
-    datasets.forEach((item) => {
-      const category = String(item?.category || '').trim();
-      if (category) values.add(category);
-    });
-    return ['ALL', ...Array.from(values).sort((a, b) => a.localeCompare(b))];
-  }, [datasets]);
 
   const filteredDatasets = useMemo(() => {
     const query = search.trim().toLowerCase();
     return datasets.filter((item) => {
       const status = String(item?.status || '').toLowerCase();
-      const category = String(item?.category || '').trim();
       const searchable = `${item?.datasetName || ''} ${item?.version || ''}`.toLowerCase();
       if (statusFilter !== 'ALL' && status !== statusFilter.toLowerCase()) return false;
-      if (categoryFilter !== 'ALL' && category !== categoryFilter) return false;
       if (query && !searchable.includes(query)) return false;
       return true;
     });
-  }, [datasets, search, statusFilter, categoryFilter]);
+  }, [datasets, search, statusFilter]);
 
   /* ================= ACTION HANDLERS ================= */
 
@@ -197,13 +180,23 @@ export default function AdminDatasets() {
     }
   };
 
-  const handleActivate = async (dataset) => {
+  const openActivateConfirm = (dataset) => {
+    setSelectedDataset(dataset);
+    setConfirmActivateOpen(true);
+  };
+
+  const handleActivate = async () => {
+    if (!selectedDataset) return;
+
     try {
-      await activateDataset(dataset);
+      setActivating(true);
+      await activateDataset(selectedDataset);
+      setConfirmActivateOpen(false);
+      setSelectedDataset(null);
       setToast({
         open: true,
         severity: 'success',
-        message: 'Dataset activated.'
+        message: 'Dataset activated successfully.'
       });
     } catch (err) {
       setToast({
@@ -211,6 +204,8 @@ export default function AdminDatasets() {
         severity: 'error',
         message: err?.response?.data?.error || 'Failed to activate dataset.'
       });
+    } finally {
+      setActivating(false);
     }
   };
 
@@ -278,13 +273,7 @@ export default function AdminDatasets() {
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <InputLabel>Category:</InputLabel>
-              <Select size="small" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ minWidth: 150 }}>
-                {categoryOptions.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
+              <TextField size="small" value="All" disabled sx={{ minWidth: 150 }} helperText="Server-paged list" />
             </Stack>
             {canWriteDatasets && (
               <Button variant="contained" startIcon={<UploadFileIcon />} onClick={() => setUploadOpen(true)}>
@@ -312,6 +301,12 @@ export default function AdminDatasets() {
       <Grid size={{ xs: 12 }}>
         <MainCard content={false} sx={{ mt: 1.5 }}>
           <Stack sx={{ p: 2.5 }} spacing={2}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="h6">Dataset Registry</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Showing {loading ? '...' : filteredDatasets.length} result(s) of {pagination.total}
+              </Typography>
+            </Stack>
             <Divider />
 
             <TableContainer component={Paper} variant="outlined">
@@ -355,11 +350,25 @@ export default function AdminDatasets() {
                         >
                           <TableCell>{d.datasetName}</TableCell>
                           <TableCell>{d.version || '-'}</TableCell>
-                          <TableCell>{d.status}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={String(d.status || 'draft').toUpperCase()}
+                              color={String(d.status || '').toLowerCase() === 'active' ? 'success' : 'default'}
+                              variant={String(d.status || '').toLowerCase() === 'active' ? 'filled' : 'outlined'}
+                            />
+                          </TableCell>
                           <TableCell>{d.uploadedAt}</TableCell>
 
                           <TableCell align="right">
-                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              justifyContent="flex-end"
+                              alignItems="center"
+                              flexWrap="wrap"
+                              useFlexGap
+                            >
                               <IconButton size="small" onClick={() => previewDataset(d.id)}>
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
@@ -371,13 +380,28 @@ export default function AdminDatasets() {
                               {canWriteDatasets && (
                                 <>
                                   {d.status !== 'active' ? (
-                                    <IconButton size="small" onClick={() => handleActivate(d)} title="Activate dataset">
-                                      <CheckCircleOutlineIcon fontSize="small" />
-                                    </IconButton>
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      color="success"
+                                      startIcon={<CheckCircleOutlineIcon fontSize="small" />}
+                                      onClick={() => openActivateConfirm(d)}
+                                    >
+                                      Activate
+                                    </Button>
                                   ) : (
-                                    <IconButton size="small" onClick={() => handleArchive(d)} title="Archive dataset">
-                                      <ArchiveIcon fontSize="small" />
-                                    </IconButton>
+                                    <>
+                                      <Chip size="small" color="success" label="Active Dataset" />
+                                      <Button
+                                        size="small"
+                                        variant="text"
+                                        color="inherit"
+                                        startIcon={<ArchiveIcon fontSize="small" />}
+                                        onClick={() => handleArchive(d)}
+                                      >
+                                        Archive
+                                      </Button>
+                                    </>
                                   )}
 
                                   <IconButton size="small" onClick={() => handleDeleteConfirm(d)}>
@@ -391,6 +415,25 @@ export default function AdminDatasets() {
                       ))}
                 </TableBody>
               </Table>
+              <TablePagination
+                component="div"
+                count={pagination.total}
+                page={Math.max(0, (pagination.page || 1) - 1)}
+                onPageChange={(_, nextPage) =>
+                  fetchDatasets({
+                    page: nextPage + 1,
+                    perPage: pagination.perPage
+                  })
+                }
+                rowsPerPage={pagination.perPage}
+                onRowsPerPageChange={(event) =>
+                  fetchDatasets({
+                    page: 1,
+                    perPage: parseInt(event.target.value, 10) || 25
+                  })
+                }
+                rowsPerPageOptions={[10, 25, 50, 100]}
+              />
             </TableContainer>
           </Stack>
         </MainCard>
@@ -450,6 +493,35 @@ export default function AdminDatasets() {
             startIcon={deleting ? <CircularProgress size={18} color="inherit" /> : null}
           >
             {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={confirmActivateOpen} onClose={() => setConfirmActivateOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Activate Dataset</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            <Typography variant="body2">
+              Set <strong>{selectedDataset?.datasetName || selectedDataset?.version}</strong> as the active dataset?
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              This will archive the current active dataset and update the system configuration to use version{' '}
+              <strong>{selectedDataset?.version}</strong>.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmActivateOpen(false)} disabled={activating}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleActivate}
+            disabled={activating}
+            startIcon={activating ? <CircularProgress size={18} color="inherit" /> : <CheckCircleOutlineIcon />}
+          >
+            {activating ? 'Activating...' : 'Confirm Activation'}
           </Button>
         </DialogActions>
       </Dialog>

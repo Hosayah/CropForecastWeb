@@ -54,14 +54,6 @@ const analyst = {
       breadcrumbs: false
     },
     {
-      id: 'analyst-datasets',
-      title: 'Datasets',
-      type: 'item',
-      url: '/analyst/datasets',
-      icon: icons.StorageOutlinedIcon,
-      breadcrumbs: false
-    },
-    {
       id: 'analyst-model-info',
       title: 'Model Info',
       type: 'item',

@@ -29,9 +29,9 @@ export function getMenuItems(role) {
   const mlManagementNoDatasets = withoutDatasets(mlManagement);
 
   if (role === 'superadmin') {
-    selectedMenus = [admin, superadminGovernance, mlManagementNoDatasets, analystNoDatasets];
+    selectedMenus = [admin, superadminGovernance, mlManagementNoDatasets];
   } else if (role === 'admin') {
-    selectedMenus = [admin, mlAdmin, analystNoDatasets];
+    selectedMenus = [admin, mlAdmin];
   } else if (role === 'analyst') {
     selectedMenus = [analyst];
   } else if (role === 'ml_engineer') {

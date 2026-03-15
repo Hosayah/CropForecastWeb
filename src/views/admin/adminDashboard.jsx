@@ -24,6 +24,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
+import { LineChart } from '@mui/x-charts/LineChart';
 
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import StorageIcon from '@mui/icons-material/Storage';
@@ -39,7 +40,7 @@ import { listDatasetsApi } from 'model/adminDatasetsApi';
 import { listAuditLogsApi } from 'model/adminAuditApi';
 import { listBackupsApi } from 'model/adminBackupApi';
 import { getSystemConfigApi } from 'model/adminSystemConfigApi';
-import { getLiveMonitoringApi } from 'model/adminMonitoringApi';
+import { getCombinedLiveMonitoringApi } from 'model/adminMonitoringApi';
 
 function AdminSummaryCard({ title, value, subtitle, icon, loading }) {
   return (
@@ -111,6 +112,12 @@ function formatDuration(ms) {
   return `${n.toFixed(2)} ms`;
 }
 
+function formatShortTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -134,6 +141,9 @@ export default function AdminDashboard() {
   const [monitoring, setMonitoring] = useState(null);
   const [monitoringLoading, setMonitoringLoading] = useState(true);
   const [monitoringError, setMonitoringError] = useState('');
+  const [monitoringWarnings, setMonitoringWarnings] = useState([]);
+  const [monitoringAvailability, setMonitoringAvailability] = useState({ localhost: false, render: false });
+  const [monitoringHistory, setMonitoringHistory] = useState([]);
 
   const fetchDashboard = async () => {
     setError('');
@@ -219,20 +229,39 @@ export default function AdminDashboard() {
     const fetchLiveMonitoring = async (silent = false) => {
       if (!silent) setMonitoringLoading(true);
       try {
-        const res = await getLiveMonitoringApi();
+        const res = await getCombinedLiveMonitoringApi();
         if (!isMounted) return;
-        setMonitoring(res?.data || null);
+        setMonitoring(res?.aggregated || null);
+        setMonitoringWarnings(res?.warnings || []);
+        setMonitoringAvailability(res?.availability || { localhost: false, render: false });
+        const next = res?.aggregated || {};
+        const now = Date.now();
+        setMonitoringHistory((prev) => {
+          const merged = [
+            ...prev,
+            {
+              ts: now,
+              label: formatShortTime(now),
+              avgDurationMs: Number(next?.requestMetrics?.avgDurationMs || 0),
+              p95DurationMs: Number(next?.requestMetrics?.p95DurationMs || 0),
+              rps: Number(next?.requestMetrics?.rps || 0)
+            }
+          ];
+          return merged.slice(-30);
+        });
         setMonitoringError('');
       } catch (err) {
         if (!isMounted) return;
-        setMonitoringError(err?.response?.data?.error || 'Failed to load live monitoring.');
+        setMonitoringWarnings([]);
+        setMonitoringAvailability({ localhost: false, render: false });
+        setMonitoringError(err?.message || err?.response?.data?.error || 'Failed to load live monitoring.');
       } finally {
         if (isMounted) setMonitoringLoading(false);
       }
     };
 
     fetchLiveMonitoring(false);
-    intervalId = setInterval(() => fetchLiveMonitoring(true), 3000);
+    intervalId = setInterval(() => fetchLiveMonitoring(true), 5000);
 
     return () => {
       isMounted = false;
@@ -256,6 +285,11 @@ export default function AdminDashboard() {
   const requestMetrics = monitoring?.requestMetrics || {};
   const slowestEndpoints = monitoring?.slowestEndpoints || [];
   const recentErrors = monitoring?.recentErrors || [];
+  const historyLabels = monitoringHistory.map((h) => h.label);
+  const historyAvgLatency = monitoringHistory.map((h) => h.avgDurationMs);
+  const historyP95Latency = monitoringHistory.map((h) => h.p95DurationMs);
+  const historyRps = monitoringHistory.map((h) => h.rps);
+  const sourceLabels = [monitoringAvailability.localhost ? 'Localhost' : null, monitoringAvailability.render ? 'Render' : null].filter(Boolean);
 
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
@@ -460,11 +494,99 @@ export default function AdminDashboard() {
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Typography variant="h6">Live API Monitoring</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Polled every 3 seconds
+                  Polled every 5 seconds
                 </Typography>
               </Stack>
 
               {monitoringError ? <Alert severity="warning">{monitoringError}</Alert> : null}
+              {!monitoringError && monitoringWarnings.length > 0 ? <Alert severity="info">{monitoringWarnings.join(' | ')}</Alert> : null}
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap">
+                <Chip
+                  size="small"
+                  color={monitoringAvailability.localhost ? 'success' : 'default'}
+                  variant="outlined"
+                  label={`Localhost ${monitoringAvailability.localhost ? 'connected' : 'offline'}`}
+                />
+                <Chip
+                  size="small"
+                  color={monitoringAvailability.render ? 'success' : 'default'}
+                  variant="outlined"
+                  label={`Render ${monitoringAvailability.render ? 'connected' : 'offline'}`}
+                />
+                {sourceLabels.length > 0 ? <Chip size="small" variant="outlined" label={`Sources: ${sourceLabels.join(' + ')}`} /> : null}
+              </Stack>
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <MainCard content={false} sx={{ border: 1, borderColor: 'divider' }}>
+                    <Stack sx={{ p: 2 }} spacing={1.25}>
+                      <Typography variant="subtitle1">Latency Trend</Typography>
+                      {monitoringHistory.length < 2 ? (
+                        <Skeleton height={220} />
+                      ) : (
+                        <LineChart
+                          height={250}
+                          margin={{ top: 20, right: 20, bottom: 20, left: 45 }}
+                          grid={{ horizontal: true, vertical: false }}
+                          xAxis={[{ scaleType: 'point', data: historyLabels }]}
+                          yAxis={[{ label: 'ms' }]}
+                          series={[
+                            {
+                              id: 'avg-latency',
+                              type: 'line',
+                              label: 'Avg',
+                              data: historyAvgLatency,
+                              color: '#4caf50',
+                              showMark: false,
+                              area: true
+                            },
+                            {
+                              id: 'p95-latency',
+                              type: 'line',
+                              label: 'P95',
+                              data: historyP95Latency,
+                              color: '#90caf9',
+                              showMark: false,
+                              area: false
+                            }
+                          ]}
+                        />
+                      )}
+                    </Stack>
+                  </MainCard>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <MainCard content={false} sx={{ border: 1, borderColor: 'divider' }}>
+                    <Stack sx={{ p: 2 }} spacing={1.25}>
+                      <Typography variant="subtitle1">RPS Trend</Typography>
+                      {monitoringHistory.length < 2 ? (
+                        <Skeleton height={220} />
+                      ) : (
+                        <LineChart
+                          height={250}
+                          margin={{ top: 20, right: 20, bottom: 20, left: 45 }}
+                          grid={{ horizontal: true, vertical: false }}
+                          xAxis={[{ scaleType: 'point', data: historyLabels }]}
+                          yAxis={[{ label: 'rps' }]}
+                          series={[
+                            {
+                              id: 'rps',
+                              type: 'line',
+                              label: 'RPS',
+                              data: historyRps,
+                              color: '#ff9800',
+                              showMark: false,
+                              area: true
+                            }
+                          ]}
+                        />
+                      )}
+                    </Stack>
+                  </MainCard>
+                </Grid>
+              </Grid>
 
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 6 }}>
@@ -484,6 +606,7 @@ export default function AdminDashboard() {
                         />
                         <Chip label={`Threads ${processMetrics.threadCount || 0}`} size="small" variant="outlined" />
                         <Chip label={`Uptime ${processMetrics.uptimeMinutes || 0} min`} size="small" variant="outlined" />
+                        <Chip label={`Instances ${processMetrics.instanceCount || 0}`} size="small" variant="outlined" />
                       </Stack>
                     </Stack>
                   </MainCard>
@@ -504,7 +627,7 @@ export default function AdminDashboard() {
                       </Stack>
                       <Box>
                         <Typography variant="caption" color="text.secondary">
-                          Error rate: {toFixed(requestMetrics.errorRatePercent)}%
+                          Error rate: {toFixed(requestMetrics.errorRatePercent, 4)}%
                         </Typography>
                         <LinearProgress
                           variant="determinate"
@@ -582,7 +705,9 @@ export default function AdminDashboard() {
                             {errorItem.method} {errorItem.path}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {errorItem.status ? `Status ${errorItem.status}` : 'Error'} {errorItem.error_type ? `â€¢ ${errorItem.error_type}` : ''}
+                            {errorItem.status ? `Status ${errorItem.status}` : 'Error'}
+                            {errorItem.error_type ? ` • ${errorItem.error_type}` : ''}
+                            {errorItem.source ? ` • ${errorItem.source}` : ''}
                           </Typography>
                         </Stack>
                       </MainCard>
@@ -602,3 +727,6 @@ export default function AdminDashboard() {
     </Grid>
   );
 }
+
+
+

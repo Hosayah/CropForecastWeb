@@ -5,6 +5,19 @@ const DEFAULT_FARM_STORAGE_KEY = 'agrisense:default_farm_id';
 const FARMS_CACHE_KEY = 'agrisense:farms_cache_v1';
 const FARMS_CACHE_TTL_MS = 60 * 1000;
 
+export function clearFarmsCache() {
+  try {
+    sessionStorage.removeItem(FARMS_CACHE_KEY);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+  try {
+    localStorage.removeItem(DEFAULT_FARM_STORAGE_KEY);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
 function readCachedFarms() {
   try {
     const raw = sessionStorage.getItem(FARMS_CACHE_KEY);
