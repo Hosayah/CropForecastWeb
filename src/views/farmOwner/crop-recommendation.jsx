@@ -16,6 +16,7 @@ import Alert from '@mui/material/Alert';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
+import Avatar from '@mui/material/Avatar';
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -39,6 +40,7 @@ import {
   forecastSnapshotCropOutlookApiFresh,
   getForecastSnapshotMetadataApi
 } from 'model/cropTrendApi';
+import mascotThinking from 'assets/images/mascot/thinking.png';
 
 const RECOMMENDATION_FARM_STORAGE_KEY = 'agrisense:recommendation_farm_id';
 const OUTLOOK_PAGE_SIZE = 10;
@@ -726,11 +728,24 @@ export default function CropRecommendationPage() {
                           `linear-gradient(180deg, ${theme.palette.primary.lighter} 0%, ${theme.palette.background.paper} 100%)`
                       }}
                     >
-                      <Stack spacing={1}>
-                        <Typography variant="subtitle1">Ask AgriSense to explain the recommendation</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Questions stay tied to your saved recommendation, crop ranking context, and supporting references from the knowledge base.
-                        </Typography>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                        <Avatar
+                          src={mascotThinking}
+                          alt="AgriSense assistant mascot"
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            bgcolor: 'success.lighter',
+                            border: '1px solid',
+                            borderColor: 'rgba(27, 120, 55, 0.18)'
+                          }}
+                        />
+                        <Stack spacing={1}>
+                          <Typography variant="subtitle1">Ask AgriSense to explain the recommendation</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Questions stay tied to your saved recommendation, crop ranking context, and supporting references from the knowledge base.
+                          </Typography>
+                        </Stack>
                       </Stack>
                     </Box>
 
@@ -793,12 +808,27 @@ export default function CropRecommendationPage() {
                                 border: (theme) => `1px solid ${theme.palette.divider}`
                               }}
                             >
-                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                                AgriSense Answer
-                              </Typography>
-                              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                                {chatResponse?.answer || 'No answer was returned.'}
-                              </Typography>
+                              <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                                <Avatar
+                                  src={mascotThinking}
+                                  alt="AgriSense assistant avatar"
+                                  sx={{
+                                    width: 44,
+                                    height: 44,
+                                    bgcolor: 'success.lighter',
+                                    border: '1px solid',
+                                    borderColor: 'rgba(27, 120, 55, 0.18)'
+                                  }}
+                                />
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                    AgriSense Answer
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                    {chatResponse?.answer || 'No answer was returned.'}
+                                  </Typography>
+                                </Box>
+                              </Stack>
                             </Box>
 
                             <Divider />
@@ -808,35 +838,45 @@ export default function CropRecommendationPage() {
                               {uniqueSources(chatResponse?.sources).length > 0 ? (
                                 <List disablePadding>
                                   {uniqueSources(chatResponse?.sources).map((source, index) => (
-                                    <ListItem
+                                    <Accordion
                                       key={`${source?.chunk_id || source?.document_id || 'source'}-${index}`}
                                       disableGutters
                                       sx={{
-                                        py: 1.25,
-                                        px: 1.5,
                                         mb: 1,
                                         borderRadius: 2.5,
                                         bgcolor: 'grey.50',
                                         border: (theme) => `1px solid ${theme.palette.divider}`,
-                                        alignItems: 'flex-start'
+                                        boxShadow: 'none',
+                                        '&:before': { display: 'none' }
                                       }}
                                     >
-                                      <ListItemText
-                                        primary={source?.title || source?.document_id || `Source ${index + 1}`}
-                                        secondary={
-                                          <Stack spacing={0.75} sx={{ mt: 0.5 }}>
-                                            <Typography variant="caption" color="text.secondary">
-                                              {formatSourceSubtitle(source)}
-                                            </Typography>
-                                            {source?.excerpt ? (
-                                              <Typography variant="body2" color="text.secondary">
-                                                {source.excerpt}
-                                              </Typography>
-                                            ) : null}
-                                          </Stack>
-                                        }
-                                      />
-                                    </ListItem>
+                                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                        <ListItem disableGutters sx={{ alignItems: 'flex-start' }}>
+                                          <ListItemText
+                                            primary={source?.title || source?.document_id || `Source ${index + 1}`}
+                                            secondary={
+                                              <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                  {formatSourceSubtitle(source)}
+                                                </Typography>
+                                                {source?.excerpt ? (
+                                                  <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                    {source.excerpt}
+                                                  </Typography>
+                                                ) : null}
+                                              </Stack>
+                                            }
+                                          />
+                                        </ListItem>
+                                      </AccordionSummary>
+                                      {source?.excerpt ? (
+                                        <AccordionDetails sx={{ pt: 0 }}>
+                                          <Typography variant="body2" color="text.secondary">
+                                            {source.excerpt}
+                                          </Typography>
+                                        </AccordionDetails>
+                                      ) : null}
+                                    </Accordion>
                                   ))}
                                 </List>
                               ) : (
@@ -981,7 +1021,5 @@ export default function CropRecommendationPage() {
     </Grid>
   );
 }
-
-
 
 

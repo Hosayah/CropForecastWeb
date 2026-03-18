@@ -7,7 +7,7 @@ export default function CustomShadows(palette) {
   return {
     button: `0 2px #0000000b`,
     text: `0 -1px 0 rgb(0 0 0 / 12%)`,
-    z1: `0px 1px 4px ${withAlpha(palette.grey[900], 0.08)}`,
+    z1: `0 12px 32px ${withAlpha(palette.grey[900], 0.08)}, 0 2px 8px ${withAlpha(palette.grey[900], 0.05)}`,
     primary: `0 0 0 2px ${withAlpha(palette.primary.main, 0.2)}`,
     secondary: `0 0 0 2px ${withAlpha(palette.secondary.main, 0.2)}`,
     error: `0 0 0 2px ${withAlpha(palette.error.main, 0.2)}`,

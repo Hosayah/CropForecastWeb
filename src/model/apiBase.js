@@ -1,9 +1,22 @@
+const DEFAULT_RENDER_API_ORIGIN = 'https://agrisenseapi.onrender.com';
+
 const resolveDefaultOrigin = () => {
   if (typeof window === 'undefined') {
     return 'http://localhost:5000';
   }
 
   const host = window.location.hostname || 'localhost';
+  const protocol = window.location.protocol || 'http:';
+  const isLocalAddress =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    /^192\.168\.\d+\.\d+$/.test(host) ||
+    /^10\.\d+\.\d+\.\d+$/.test(host);
+
+  if (protocol === 'https:' && !isLocalAddress) {
+    return import.meta.env.VITE_RENDER_API_ORIGIN || DEFAULT_RENDER_API_ORIGIN;
+  }
+
   return `http://${host}:5000`;
 };
 
@@ -14,8 +27,8 @@ export const API_TARGETS = {
 
 const API_TARGET_KEY = 'agrisense:web_api_target';
 
+export const RENDER_API_ORIGIN = import.meta.env.VITE_RENDER_API_ORIGIN || DEFAULT_RENDER_API_ORIGIN;
 export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || resolveDefaultOrigin();
-export const RENDER_API_ORIGIN = import.meta.env.VITE_RENDER_API_ORIGIN || 'https://agrisenseapi.onrender.com';
 
 const API_PATHS = {
   auth: '/auth/v1',

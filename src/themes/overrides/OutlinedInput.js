@@ -1,6 +1,7 @@
 // project imports
 import getColors from 'utils/getColors';
 import getShadow from 'utils/getShadow';
+import { withAlpha } from 'utils/colorUtils';
 
 // ==============================|| OVERRIDES - INPUT BORDER & SHADOWS ||============================== //
 
@@ -22,9 +23,16 @@ export default function OutlinedInput(theme) {
   return {
     MuiOutlinedInput: {
       styleOverrides: {
-        input: { padding: '10.5px 14px 10.5px 12px' },
+        input: { padding: '12px 14px 12px 14px' },
         notchedOutline: { borderColor: theme.vars.palette.grey[300] },
-        root: { ...getColor({ variant: 'primary', theme }), '&.Mui-error': { ...getColor({ variant: 'error', theme }) } },
+        root: {
+          borderRadius: 16,
+          backgroundColor: withAlpha(theme.vars.palette.common.white, 0.86),
+          backdropFilter: 'blur(10px)',
+          transition: 'background-color 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+          ...getColor({ variant: 'primary', theme }),
+          '&.Mui-error': { ...getColor({ variant: 'error', theme }) }
+        },
         inputSizeSmall: { padding: '7.5px 8px 7.5px 12px' },
         inputMultiline: { padding: 0 },
         colorSecondary: getColor({ variant: 'secondary', theme }),

@@ -28,7 +28,15 @@ export default function DashboardLayout() {
   if (menuMasterLoading) return <Loader />;
 
   return (
-    <Box sx={{ display: 'flex', width: '100%' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        width: '100%',
+        minHeight: '100vh',
+        background:
+          'radial-gradient(circle at top left, rgba(82,196,26,0.08), transparent 26%), radial-gradient(circle at top right, rgba(250, 173, 20, 0.06), transparent 24%), linear-gradient(180deg, #f9fbf7 0%, #f5f7fa 44%, #f8fafc 100%)'
+      }}
+    >
       <Header />
       <Drawer />
 
@@ -40,7 +48,10 @@ export default function DashboardLayout() {
             position: 'relative',
             minHeight: 'calc(100vh - 110px)',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            maxWidth: 1600,
+            mx: 'auto',
+            width: '100%'
           }}
         >
           <Breadcrumbs />

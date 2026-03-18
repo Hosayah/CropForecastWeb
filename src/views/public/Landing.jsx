@@ -23,6 +23,7 @@ import { useAuth } from 'contexts/AuthContext';
 import onboardingStep1 from 'assets/images/onboarding/onbaording_1.jpg';
 import onboardingStep2 from 'assets/images/onboarding/onboarding_2.jpg';
 import onboardingStep3 from 'assets/images/onboarding/onboarding_3.jpg';
+import mascotWaving from 'assets/images/mascot/waving.png';
 
 const FEATURES = [
   {
@@ -123,6 +124,39 @@ export default function LandingPage() {
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Stack sx={{ gap: 1.4 }}>
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        borderRadius: 4,
+                        borderColor: 'rgba(27, 120, 55, 0.15)',
+                        bgcolor: 'rgba(255,255,255,0.72)'
+                      }}
+                    >
+                      <CardContent sx={{ p: 2.25 }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Box
+                            component="img"
+                            src={mascotWaving}
+                            alt="AgriSense mascot waving"
+                            sx={{
+                              width: 78,
+                              height: 78,
+                              objectFit: 'contain',
+                              flexShrink: 0,
+                              filter: 'drop-shadow(0 10px 22px rgba(16,24,40,0.12))'
+                            }}
+                          />
+                          <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                              Meet the AgriSense guide
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Follow the mascot through the app for quick guidance, grounded answers, and a friendlier planning flow.
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
                     <Button
                       component={RouterLink}
                       to="/login"

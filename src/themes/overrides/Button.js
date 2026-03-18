@@ -101,7 +101,10 @@ export default function Button(theme) {
       },
       styleOverrides: {
         root: {
-          fontWeight: 400,
+          fontWeight: 600,
+          borderRadius: 14,
+          paddingInline: 18,
+          minHeight: 42,
           '&::after': {
             content: '""',
             display: 'block',
@@ -125,11 +128,13 @@ export default function Button(theme) {
           }
         },
         contained: {
+          boxShadow: '0 10px 24px rgba(82, 196, 26, 0.18)',
           '&.Mui-disabled': {
             ...disabledStyle
           }
         },
         outlined: {
+          borderWidth: 1.5,
           '&.Mui-disabled': {
             ...disabledStyle,
             '&:hover': {
@@ -201,7 +206,7 @@ export default function Button(theme) {
         sizeExtraSmall: {
           minWidth: 56,
           fontSize: '0.625rem',
-          padding: '2px 8px'
+          padding: '4px 10px'
         },
         loading: {
           pointerEvents: 'none !important',

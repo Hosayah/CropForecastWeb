@@ -31,10 +31,25 @@ export default function MainCard({
       elevation={elevation || 0}
       sx={(theme) => ({
         position: 'relative',
-        ...(border && { border: `1px solid ${theme.vars.palette.grey['A800']}` }),
-        borderRadius: 1,
-        boxShadow: boxShadow && !border ? shadow || theme.vars.customShadows.z1 : 'inherit',
-        ':hover': { boxShadow: boxShadow ? shadow || theme.vars.customShadows.z1 : 'inherit' },
+        overflow: 'hidden',
+        ...(border && { border: `1px solid ${theme.vars.palette.grey[200]}` }),
+        borderRadius: 4,
+        background: `linear-gradient(180deg, ${theme.vars.palette.common.white} 0%, ${theme.vars.palette.grey[0]} 100%)`,
+        boxShadow: boxShadow && !border ? shadow || theme.vars.customShadows.z1 : theme.vars.customShadows.z1,
+        transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background:
+            'linear-gradient(135deg, rgba(82, 196, 26, 0.08) 0%, rgba(82, 196, 26, 0.02) 22%, rgba(255,255,255,0) 55%)'
+        },
+        ':hover': {
+          boxShadow: boxShadow ? shadow || theme.vars.customShadows.z1 : theme.vars.customShadows.z1,
+          borderColor: theme.vars.palette.grey[300],
+          transform: 'translateY(-1px)'
+        },
         ...(codeHighlight && {
           '& pre': { margin: 0, padding: '12px !important', fontFamily: theme.typography.fontFamily, fontSize: '0.75rem' }
         }),
@@ -54,7 +69,7 @@ export default function MainCard({
       {/* card header and action */}
       {!darkTitle && title && (
         <CardHeader
-          sx={{ p: 2.5 }}
+          sx={{ p: 3, pb: subheader ? 2.25 : 2.5 }}
           slotProps={{
             title: { variant: darkTitle ? 'h4' : 'subtitle1' },
             action: { sx: { m: '0px auto', alignSelf: 'center' } }

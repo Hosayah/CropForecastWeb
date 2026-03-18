@@ -5,6 +5,7 @@ import AgricultureOutlinedIcon from '@mui/icons-material/AgricultureOutlined';
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import DateRangeOutlinedIcon from '@mui/icons-material/DateRangeOutlined';
 import MapOutlinedIcon from '@mui/icons-material/MapOutlined';
+import CompostOutlinedIcon from '@mui/icons-material/CompostOutlined';
 import {LineChartOutlined} from '@ant-design/icons'
 
 // icons
@@ -15,7 +16,8 @@ const icons = {
   AgricultureOutlinedIcon,
   LineChartOutlined,
   DateRangeOutlinedIcon,
-  MapOutlinedIcon
+  MapOutlinedIcon,
+  CompostOutlinedIcon
 };
 
 // ==============================|| MENU ITEMS - DASHBOARD ||============================== //
@@ -35,7 +37,7 @@ const farmOwner = {
     },
     {
       id: 'farm-management',
-      title: 'Farm Management',
+      title: 'Farms',
       type: 'item',
       url: '/farmOwner/farm-management',
       icon: icons.AgricultureOutlinedIcon,
@@ -43,15 +45,15 @@ const farmOwner = {
     },
     {
       id: 'crop-recommendation',
-      title: 'Crop Recommendation',
+      title: 'Crop',
       type: 'item',
       url: '/farmOwner/crop-recommendation',
-      icon: icons.DateRangeOutlinedIcon,
+      icon: icons.CompostOutlinedIcon,
       breadcrumbs: false
     },
     {
       id: 'farm-map',
-      title: 'Farm Map',
+      title: 'Map',
       type: 'item',
       url: '/farmOwner/farm-map',
       icon: icons.MapOutlinedIcon,

@@ -24,7 +24,7 @@ import Transitions from 'components/@extended/Transitions';
 import IconButton from 'components/@extended/IconButton';
 
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
-import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 
 import { useAuth } from 'contexts/AuthContext';
 
@@ -103,8 +103,8 @@ export default function Profile() {
           aria-haspopup="true"
           onClick={handleToggle}
         >
-          <Avatar size="sm" sx={{ '&:hover': { outline: '1px solid', outlineColor: 'primary.main' } }}>
-            <AccountCircleOutlinedIcon fontSize="small" />
+          <Avatar size="sm" color="secondary" sx={{ '&:hover': { outline: '1px solid', outlineColor: 'primary.black' } }}>
+            <PersonOutlinedIcon fontSize="small" />
           </Avatar>
         </ButtonBase>
       </Tooltip>
@@ -135,7 +135,7 @@ export default function Profile() {
                       <Grid>
                         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center' }}>
                           <Avatar sx={{ width: 32, height: 32 }}>
-                            <AccountCircleOutlinedIcon fontSize="small" />
+                            <PersonOutlinedIcon fontSize="small" />
                           </Avatar>
                           <Stack>
                             <Typography variant="h6">{[user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User'}</Typography>

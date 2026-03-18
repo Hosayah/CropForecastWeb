@@ -271,10 +271,6 @@ export default function AdminDatasets() {
                 <MenuItem value="archived">ARCHIVED</MenuItem>
               </Select>
             </Stack>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <InputLabel>Category:</InputLabel>
-              <TextField size="small" value="All" disabled sx={{ minWidth: 150 }} helperText="Server-paged list" />
-            </Stack>
             {canWriteDatasets && (
               <Button variant="contained" startIcon={<UploadFileIcon />} onClick={() => setUploadOpen(true)}>
                 Upload Dataset
