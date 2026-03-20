@@ -28,18 +28,26 @@ function exportCSV(rows, province, periodLabel) {
   URL.revokeObjectURL(url);
 }
 
-export default function CropsTable({ rows, province, periodLabel = 'Latest' }) {
+export default function CropsTable({ rows, province, periodLabel = 'Latest', headerAction = null }) {
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" sx={{ p: 2 }}>
-        <Typography variant="h5">Top 10 Crops</Typography>
-        <Button
-          size="small"
-          startIcon={<DownloadOutlined />}
-          onClick={() => exportCSV(rows, province, periodLabel)}
-        >
-          Export CSV
-        </Button>
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ p: 2 }}>
+        <Stack spacing={0.5}>
+          <Typography variant="h5">Top 10 Crops</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Ranked for {periodLabel} based on your selected farm scope.
+          </Typography>
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+          {headerAction}
+          <Button
+            size="small"
+            startIcon={<DownloadOutlined />}
+            onClick={() => exportCSV(rows, province, periodLabel)}
+          >
+            Export CSV
+          </Button>
+        </Stack>
       </Stack>
       <Stack spacing={1.25} sx={{ px: 2, pb: 2 }}>
         {rows.map((row, index) => (
@@ -68,6 +76,7 @@ export default function CropsTable({ rows, province, periodLabel = 'Latest' }) {
 }
 
 CropsTable.propTypes = {
+  headerAction: PropTypes.node,
   rows: PropTypes.array.isRequired,
   province: PropTypes.string.isRequired,
   periodLabel: PropTypes.string

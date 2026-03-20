@@ -28,6 +28,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import MainCard from 'components/MainCard';
 import formatRelativeTime from 'utils/helper/formatDateTime';
+import FarmOwnerPageHeader from 'views/farmOwner/components/FarmOwnerPageHeader';
 
 import { useCropRecommendation } from 'viewModel/useCropRecommendation';
 import { useRecommendationChat } from 'viewModel/useRecommendationChat';
@@ -509,10 +510,16 @@ export default function CropRecommendationPage() {
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
       <Grid size={12}>
-        <Tabs value={tab} onChange={(_, value) => setTab(value)}>
-          <Tab value="recommendation" label="Crop Recommendation" />
-          <Tab value="outlook" label="Crop Outlook" />
-        </Tabs>
+        <Stack spacing={2}>
+          <FarmOwnerPageHeader
+            title={tab === 'recommendation' ? 'Crop Recommendation' : 'Crop Outlook'}
+            current={tab === 'recommendation' ? 'Crop Recommendation' : 'Crop Outlook'}
+          />
+          <Tabs value={tab} onChange={(_, value) => setTab(value)}>
+            <Tab value="recommendation" label="Crop Recommendation" />
+            <Tab value="outlook" label="Crop Outlook" />
+          </Tabs>
+        </Stack>
       </Grid>
 
       {tab === 'recommendation' && (
@@ -751,6 +758,44 @@ export default function CropRecommendationPage() {
 
                     <Box sx={{ px: 2.5, pb: 2.5 }}>
                       <Stack spacing={2}>
+                        {chatError ? (
+                          <Alert severity="error">
+                            {chatError?.response?.data?.error || 'Unable to generate an answer right now.'}
+                          </Alert>
+                        ) : null}
+
+                        {chatResponse ? (
+                          <Box
+                            sx={{
+                              p: 2.25,
+                              borderRadius: 2.5,
+                              bgcolor: 'grey.50',
+                              border: (theme) => `1px solid ${theme.palette.divider}`
+                            }}
+                          >
+                            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                              <Avatar
+                                src={mascotThinking}
+                                alt="AgriSense assistant avatar"
+                                sx={{
+                                  width: 44,
+                                  height: 44,
+                                  bgcolor: 'success.lighter',
+                                  border: '1px solid',
+                                  borderColor: 'rgba(27, 120, 55, 0.18)'
+                                }}
+                              />
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                  AgriSense Answer
+                                </Typography>
+                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                  {chatResponse?.answer || 'No answer was returned.'}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Box>
+                        ) : null}
 
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                           {chatPromptSuggestions.map((prompt) => (
@@ -768,8 +813,8 @@ export default function CropRecommendationPage() {
                           <TextField
                             fullWidth
                             multiline
-                            minRows={3}
-                            maxRows={6}
+                            minRows={2}
+                            maxRows={4}
                             label="Ask about your farm recommendation"
                             placeholder={chatPromptSuggestions[0]}
                             value={chatQuestion}
@@ -792,45 +837,8 @@ export default function CropRecommendationPage() {
                           </Button>
                         </Stack>
 
-                        {chatError ? (
-                          <Alert severity="error">
-                            {chatError?.response?.data?.error || 'Unable to generate an answer right now.'}
-                          </Alert>
-                        ) : null}
-
                         {chatResponse ? (
                           <Stack spacing={2}>
-                            <Box
-                              sx={{
-                                p: 2.25,
-                                borderRadius: 2.5,
-                                bgcolor: 'grey.50',
-                                border: (theme) => `1px solid ${theme.palette.divider}`
-                              }}
-                            >
-                              <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                                <Avatar
-                                  src={mascotThinking}
-                                  alt="AgriSense assistant avatar"
-                                  sx={{
-                                    width: 44,
-                                    height: 44,
-                                    bgcolor: 'success.lighter',
-                                    border: '1px solid',
-                                    borderColor: 'rgba(27, 120, 55, 0.18)'
-                                  }}
-                                />
-                                <Box sx={{ flex: 1 }}>
-                                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                                    AgriSense Answer
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                                    {chatResponse?.answer || 'No answer was returned.'}
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </Box>
-
                             <Divider />
 
                             <Stack spacing={1}>
@@ -917,6 +925,7 @@ export default function CropRecommendationPage() {
                             </Accordion>
                           </Stack>
                         ) : null}
+
                       </Stack>
                     </Box>
                   </Stack>
@@ -1021,5 +1030,3 @@ export default function CropRecommendationPage() {
     </Grid>
   );
 }
-
-

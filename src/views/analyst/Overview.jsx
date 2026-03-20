@@ -20,8 +20,8 @@ import Paper from '@mui/material/Paper';
 import AnalystPageHeader from './components/AnalystPageHeader';
 import AnalystSummaryCard from './components/AnalystSummaryCard';
 import MainCard from 'components/MainCard';
-import { getForecastSnapshotApi, getForecastSnapshotApiFresh } from 'model/cropTrendApi';
-import { ALL_PROVINCES, extractProvinceOptions, getPayload, formatNumber } from './utils';
+import { ALL_PROVINCES, formatNumber } from './utils';
+import useAnalystSnapshot from './useAnalystSnapshot';
 import CropTrendCard from 'sections/dashboard/default/CropTrendCard';
 
 function normalizeProvince(value) {
@@ -68,76 +68,42 @@ function sumByCropGroup(rows, group) {
 }
 
 export default function AnalystOverview() {
-  const [province, setProvince] = useState(ALL_PROVINCES);
-  const [snapshot, setSnapshot] = useState(null);
+  const [province, setProvince] = useState('');
   const [selectedCrops, setSelectedCrops] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [snapshotLastUpdatedAt, setSnapshotLastUpdatedAt] = useState(0);
-  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
+  const {
+    snapshot,
+    provinceOptions,
+    loading,
+    error,
+    snapshotLastUpdatedAt,
+    isBackgroundRefreshing,
+    loadedProvinceCount,
+    totalProvinceCount,
+    firstLoadedProvince,
+    allProvincesReady
+  } = useAnalystSnapshot();
+
+  const selectableProvinceOptions = useMemo(
+    () => (allProvincesReady ? provinceOptions : provinceOptions.filter((option) => option !== ALL_PROVINCES)),
+    [provinceOptions, allProvincesReady]
+  );
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadSnapshot() {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getForecastSnapshotApi({ compact: 1 });
-        if (!mounted) return;
-
-        const payload = getPayload(response);
-        setSnapshot(payload?.status === 'no_snapshot' ? null : payload);
-
-        const cacheState = String(response?.headers?.['x-client-cache'] || '').toUpperCase();
-        const updatedAt = Number(response?.headers?.['x-client-cache-updated-at'] || 0);
-        if (updatedAt > 0) setSnapshotLastUpdatedAt(updatedAt);
-
-        setLoading(false);
-
-        if (cacheState === 'STALE') {
-          setIsBackgroundRefreshing(true);
-          try {
-            const freshRes = await getForecastSnapshotApiFresh({ compact: 1 });
-            if (!mounted) return;
-            const freshPayload = getPayload(freshRes);
-            if (freshPayload?.status !== 'no_snapshot') {
-              setSnapshot(freshPayload);
-            }
-            const freshUpdatedAt = Number(freshRes?.headers?.['x-client-cache-updated-at'] || 0);
-            if (freshUpdatedAt > 0) setSnapshotLastUpdatedAt(freshUpdatedAt);
-          } catch {
-            // Keep stale response rendered.
-          } finally {
-            if (mounted) setIsBackgroundRefreshing(false);
-          }
-        } else {
-          setIsBackgroundRefreshing(false);
-        }
-      } catch (err) {
-        if (!mounted) return;
-        setSnapshot(null);
-        setLoading(false);
-        setIsBackgroundRefreshing(false);
-        setError(err?.response?.data?.error || 'Failed to load overview analytics.');
-      }
+    const defaultProvince = firstLoadedProvince || selectableProvinceOptions.find((option) => option !== ALL_PROVINCES) || '';
+    if (!province && defaultProvince) {
+      setProvince(defaultProvince);
+      return;
     }
-
-    loadSnapshot();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const provinceOptions = useMemo(() => extractProvinceOptions({ data: snapshot || {} }), [snapshot]);
-
-  useEffect(() => {
-    if (!provinceOptions.includes(province)) {
-      setProvince(ALL_PROVINCES);
+    if (province === ALL_PROVINCES && !allProvincesReady) {
+      setProvince(defaultProvince);
+      return;
     }
-  }, [province, provinceOptions]);
+    if (province && !selectableProvinceOptions.includes(province)) {
+      setProvince(defaultProvince);
+    }
+  }, [province, selectableProvinceOptions, firstLoadedProvince, allProvincesReady]);
 
   const scopedRows = useMemo(() => {
     const provincesMap = snapshot?.provinces || {};
@@ -154,8 +120,20 @@ export default function AnalystOverview() {
     });
   }, [snapshot, province]);
 
+  const effectiveHorizon = useMemo(() => {
+    const metadataHorizon = Number(snapshot?.metadata?.horizon || 0);
+    if (Number.isFinite(metadataHorizon) && metadataHorizon > 0) return metadataHorizon;
+
+    let derived = 0;
+    scopedRows.forEach((row) => {
+      const step = parseStep(row?.forecast_horizon);
+      if (step != null && step > derived) derived = step;
+    });
+    return derived;
+  }, [snapshot, scopedRows]);
+
   const trend = useMemo(() => {
-    const horizon = Number(snapshot?.metadata?.horizon || 0);
+    const horizon = Number(effectiveHorizon || 0);
     const labels = buildTrendLabels(snapshot?.metadata?.basePeriod, horizon);
     const steps = Array.from({ length: Math.max(0, horizon) }, (_, idx) => idx + 1);
 
@@ -181,7 +159,7 @@ export default function AnalystOverview() {
       .sort((a, b) => (b.data[b.data.length - 1] || 0) - (a.data[a.data.length - 1] || 0));
 
     return { labels, series };
-  }, [snapshot, scopedRows]);
+  }, [snapshot, scopedRows, effectiveHorizon]);
 
   useEffect(() => {
     setSelectedCrops((prev) => {
@@ -249,7 +227,7 @@ export default function AnalystOverview() {
           <Stack direction="row" spacing={1} alignItems="center">
             <InputLabel>Province:</InputLabel>
             <Select size="small" value={province} onChange={(event) => setProvince(event.target.value)} sx={{ minWidth: 180 }}>
-              {provinceOptions.map((option) => (
+              {selectableProvinceOptions.map((option) => (
                 <MenuItem key={option} value={option}>
                   {option}
                 </MenuItem>
@@ -260,7 +238,7 @@ export default function AnalystOverview() {
         {snapshotLastUpdatedAt > 0 ? (
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
             Last updated: {new Date(snapshotLastUpdatedAt).toLocaleString()}
-            {isBackgroundRefreshing ? ' (refreshing...)' : ''}
+            {isBackgroundRefreshing ? ` (loading ${loadedProvinceCount}/${totalProvinceCount || loadedProvinceCount} provinces...)` : ''}
           </Typography>
         ) : null}
       </Grid>
@@ -309,7 +287,19 @@ export default function AnalystOverview() {
             </Stack>
           </MainCard>
         ) : filteredTrend.series.length === 0 ? (
-          <Alert severity="info">No trend data available for this selection.</Alert>
+          isBackgroundRefreshing ? (
+            <MainCard content={false}>
+              <Stack sx={{ p: 2.5 }} spacing={1.5}>
+                <Typography variant="h6">Crop Trend</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Loading the first available province trend slices. {loadedProvinceCount}/{totalProvinceCount || loadedProvinceCount} provinces ready.
+                </Typography>
+                <Skeleton variant="rounded" height={320} />
+              </Stack>
+            </MainCard>
+          ) : (
+            <Alert severity="info">No trend data available for this selection.</Alert>
+          )
         ) : (
           <CropTrendCard
             labels={filteredTrend.labels}

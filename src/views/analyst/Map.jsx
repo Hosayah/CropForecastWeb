@@ -19,7 +19,8 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'components/MainCard';
 import AnalystPageHeader from './components/AnalystPageHeader';
-import { analyticsRiskApi, analyticsSummaryApi, getForecastSnapshotApi } from 'model/cropTrendApi';
+import useAnalystSnapshot from './useAnalystSnapshot';
+import { analyticsRiskApi, analyticsSummaryApi } from 'model/cropTrendApi';
 import { PH_PROVINCE_GEOJSON } from 'data/phProvinceGeoJson';
 import { PSGC_PROVINCE_BY_CODE } from 'data/psgcProvinceByCode';
 import { getPayload } from './utils';
@@ -255,44 +256,37 @@ export default function AnalystMap() {
   const [horizon, setHorizon] = useState(4);
   const [selectedProvince, setSelectedProvince] = useState(ALL_PROVINCES);
   const [basePeriod, setBasePeriod] = useState(null);
-  const [snapshotRows, setSnapshotRows] = useState([]);
   const [summary, setSummary] = useState(null);
   const [risk, setRisk] = useState(null);
   const [geoFeatures, setGeoFeatures] = useState(PH_PROVINCE_GEOJSON?.features || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const {
+    snapshot,
+    provinceOptions: loadedProvinceOptions,
+    loading: snapshotLoading,
+    error: snapshotError,
+    isBackgroundRefreshing,
+    loadedProvinceCount,
+    totalProvinceCount
+  } = useAnalystSnapshot();
+
+  const snapshotRows = useMemo(() => {
+    const provincesMap = snapshot?.provinces || {};
+    return Object.values(provincesMap).flatMap((provinceDoc) => (Array.isArray(provinceDoc?.rows) ? provinceDoc.rows : []));
+  }, [snapshot]);
 
   useEffect(() => {
-    let mounted = true;
+    setBasePeriod(snapshot?.metadata?.basePeriod || null);
+    const maxH = Number(snapshot?.metadata?.horizon || 4);
+    const safeMax = Number.isFinite(maxH) && maxH > 0 ? maxH : 4;
+    setMaxForecastHorizon(safeMax);
+    setHorizon((prev) => (prev >= 1 && prev <= safeMax ? prev : safeMax));
+  }, [snapshot]);
 
-    async function loadSnapshot() {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getForecastSnapshotApi({ compact: 1 });
-        const payload = getPayload(response);
-        const rows = Object.values(payload?.provinces || {}).flatMap((provinceDoc) => (Array.isArray(provinceDoc?.rows) ? provinceDoc.rows : []));
-        if (!mounted) return;
-        setSnapshotRows(rows);
-        setBasePeriod(payload?.metadata?.basePeriod || null);
-        const maxH = Number(payload?.metadata?.horizon || 4);
-        const safeMax = Number.isFinite(maxH) && maxH > 0 ? maxH : 4;
-        setMaxForecastHorizon(safeMax);
-        setHorizon(safeMax);
-      } catch (err) {
-        if (!mounted) return;
-        setSnapshotRows([]);
-        setError(err?.response?.data?.error || 'Failed to load map analytics.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    loadSnapshot();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => {
+    if (snapshotError) setError(snapshotError);
+  }, [snapshotError]);
 
   useEffect(() => {
     let mounted = true;
@@ -371,7 +365,7 @@ export default function AnalystMap() {
     return out;
   }, [quarterRows]);
 
-  const provinceOptions = useMemo(() => [ALL_PROVINCES, ...Object.keys(provinceRows).sort((a, b) => a.localeCompare(b))], [provinceRows]);
+  const provinceOptions = useMemo(() => loadedProvinceOptions, [loadedProvinceOptions]);
 
   const selectedRows = useMemo(() => {
     if (selectedProvince === ALL_PROVINCES) return quarterRows;
@@ -467,7 +461,7 @@ export default function AnalystMap() {
       <Grid size={{ xs: 12, lg: 7 }}>
         <MainCard content={false}>
           <CardContent>
-            {loading ? (
+            {loading || snapshotLoading ? (
               <Skeleton variant="rounded" height={430} />
             ) : (
               <ProvinceMap
@@ -478,6 +472,11 @@ export default function AnalystMap() {
               />
             )}
             <Divider sx={{ my: 1.5 }} />
+            {isBackgroundRefreshing ? (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Loading {loadedProvinceCount}/{totalProvinceCount || loadedProvinceCount} provinces in the background...
+              </Typography>
+            ) : null}
             <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
               <Chip size="small" label="Green = High" sx={{ bgcolor: '#f6ffed', color: '#237804' }} />
               <Chip size="small" label="Yellow = Risk-prone" sx={{ bgcolor: '#fffbe6', color: '#ad6800' }} />
@@ -493,7 +492,7 @@ export default function AnalystMap() {
           <CardContent>
             <Stack spacing={1.25}>
               <Typography variant="h6">Details</Typography>
-              {loading ? (
+              {loading || snapshotLoading ? (
                 <>
                   <Skeleton />
                   <Skeleton />

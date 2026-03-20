@@ -18,6 +18,7 @@ import AgricultureIcon from '@mui/icons-material/Agriculture';
 import MainCard from 'components/MainCard';
 import FarmFormModal from 'components/modal/FarmFormModal';
 import AnalyticCardSkeleton from '../../components/skeletons/AnalyticCardSkeleton';
+import FarmOwnerPageHeader from 'views/farmOwner/components/FarmOwnerPageHeader';
 
 import { useFarms } from 'viewModel/useFarms';
 import { createFarmApi, updateFarmApi, deleteFarmApi } from 'model/farmApi';
@@ -171,7 +172,7 @@ export default function FarmManagementPage() {
       </Dialog>
 
       <Grid size={12} container alignItems="center" justifyContent="space-between">
-        <Typography variant="h5">Farm Management</Typography>
+        <FarmOwnerPageHeader title="Farm Management" current="Farm Management" />
 
         <Button
           variant="contained"

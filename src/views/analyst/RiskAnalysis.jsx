@@ -22,8 +22,8 @@ import { BarChart } from '@mui/x-charts/BarChart';
 
 import MainCard from 'components/MainCard';
 import AnalystPageHeader from './components/AnalystPageHeader';
-import { getForecastSnapshotApi, getForecastSnapshotApiFresh } from 'model/cropTrendApi';
-import { ALL_PROVINCES, extractProvinceOptions, formatPercent, getPayload } from './utils';
+import { ALL_PROVINCES, formatPercent } from './utils';
+import useAnalystSnapshot from './useAnalystSnapshot';
 
 const RISK_KEYS = ['High', 'Risk-prone', 'Declining'];
 const GROUP_ORDER = ['PALAY', 'CORN', 'OTHER'];
@@ -63,8 +63,7 @@ function dominantRiskFromPercentages(percentages) {
 }
 
 export default function AnalystRiskAnalysis() {
-  const [snapshot, setSnapshot] = useState(null);
-  const [province, setProvince] = useState(ALL_PROVINCES);
+  const [province, setProvince] = useState('');
   const [maxForecastHorizon, setMaxForecastHorizon] = useState(4);
   const [horizon, setHorizon] = useState(4);
   const [riskSearch, setRiskSearch] = useState('');
@@ -72,79 +71,45 @@ export default function AnalystRiskAnalysis() {
   const [riskGroupFilter, setRiskGroupFilter] = useState('ALL');
   const [riskPage, setRiskPage] = useState(0);
   const [riskRowsPerPage, setRiskRowsPerPage] = useState(10);
-  const [loading, setLoading] = useState(true);
-  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
-  const [snapshotLastUpdatedAt, setSnapshotLastUpdatedAt] = useState(0);
-  const [error, setError] = useState('');
+  const {
+    snapshot,
+    provinceOptions,
+    loading,
+    error,
+    snapshotLastUpdatedAt,
+    isBackgroundRefreshing,
+    loadedProvinceCount,
+    totalProvinceCount,
+    firstLoadedProvince,
+    allProvincesReady
+  } = useAnalystSnapshot();
+
+  const selectableProvinceOptions = useMemo(
+    () => (allProvincesReady ? provinceOptions : provinceOptions.filter((option) => option !== ALL_PROVINCES)),
+    [provinceOptions, allProvincesReady]
+  );
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadSnapshot() {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getForecastSnapshotApi({ compact: 1 });
-        if (!mounted) return;
-
-        const payload = getPayload(response);
-        setSnapshot(payload?.status === 'no_snapshot' ? null : payload);
-
-        const maxH = Number(payload?.metadata?.horizon || 4);
-        const safeMax = Number.isFinite(maxH) && maxH > 0 ? maxH : 4;
-        setMaxForecastHorizon(safeMax);
-        setHorizon((prev) => (prev >= 1 && prev <= safeMax ? prev : safeMax));
-
-        const cacheState = String(response?.headers?.['x-client-cache'] || '').toUpperCase();
-        const updatedAt = Number(response?.headers?.['x-client-cache-updated-at'] || 0);
-        if (updatedAt > 0) setSnapshotLastUpdatedAt(updatedAt);
-        setLoading(false);
-
-        if (cacheState === 'STALE') {
-          setIsBackgroundRefreshing(true);
-          try {
-            const freshRes = await getForecastSnapshotApiFresh({ compact: 1 });
-            if (!mounted) return;
-            const freshPayload = getPayload(freshRes);
-            if (freshPayload?.status !== 'no_snapshot') {
-              setSnapshot(freshPayload);
-              const nextMax = Number(freshPayload?.metadata?.horizon || safeMax);
-              const nextSafeMax = Number.isFinite(nextMax) && nextMax > 0 ? nextMax : safeMax;
-              setMaxForecastHorizon(nextSafeMax);
-              setHorizon((prev) => (prev >= 1 && prev <= nextSafeMax ? prev : nextSafeMax));
-            }
-            const freshUpdatedAt = Number(freshRes?.headers?.['x-client-cache-updated-at'] || 0);
-            if (freshUpdatedAt > 0) setSnapshotLastUpdatedAt(freshUpdatedAt);
-          } catch {
-            // Keep stale snapshot rendered.
-          } finally {
-            if (mounted) setIsBackgroundRefreshing(false);
-          }
-        } else {
-          setIsBackgroundRefreshing(false);
-        }
-      } catch (err) {
-        if (!mounted) return;
-        setSnapshot(null);
-        setError(err?.response?.data?.error || 'Failed to load risk distribution.');
-        setIsBackgroundRefreshing(false);
-        setLoading(false);
-      }
-    }
-
-    loadSnapshot();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const provinceOptions = useMemo(() => extractProvinceOptions({ data: snapshot || {} }), [snapshot]);
+    const maxH = Number(snapshot?.metadata?.horizon || 4);
+    const safeMax = Number.isFinite(maxH) && maxH > 0 ? maxH : 4;
+    setMaxForecastHorizon(safeMax);
+    setHorizon((prev) => (prev >= 1 && prev <= safeMax ? prev : safeMax));
+  }, [snapshot]);
 
   useEffect(() => {
-    if (!provinceOptions.includes(province)) {
-      setProvince(ALL_PROVINCES);
+    const defaultProvince = firstLoadedProvince || selectableProvinceOptions.find((option) => option !== ALL_PROVINCES) || '';
+    if (!province && defaultProvince) {
+      setProvince(defaultProvince);
+      return;
     }
-  }, [province, provinceOptions]);
+    if (province === ALL_PROVINCES && !allProvincesReady) {
+      setProvince(defaultProvince);
+      return;
+    }
+    if (province && !selectableProvinceOptions.includes(province)) {
+      setProvince(defaultProvince);
+    }
+  }, [province, selectableProvinceOptions, firstLoadedProvince, allProvincesReady]);
 
   const scopedRows = useMemo(() => {
     const provincesMap = snapshot?.provinces || {};
@@ -297,7 +262,7 @@ export default function AnalystRiskAnalysis() {
             </Select>
             <InputLabel>Province:</InputLabel>
             <Select size="small" value={province} onChange={(event) => setProvince(event.target.value)} sx={{ minWidth: 220 }}>
-              {provinceOptions.map((option) => (
+              {selectableProvinceOptions.map((option) => (
                 <MenuItem key={option} value={option}>
                   {option}
                 </MenuItem>
@@ -308,7 +273,7 @@ export default function AnalystRiskAnalysis() {
         {snapshotLastUpdatedAt > 0 ? (
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
             Last updated: {new Date(snapshotLastUpdatedAt).toLocaleString()}
-            {isBackgroundRefreshing ? ' (refreshing...)' : ''}
+            {isBackgroundRefreshing ? ` (loading ${loadedProvinceCount}/${totalProvinceCount || loadedProvinceCount} provinces...)` : ''}
           </Typography>
         ) : null}
       </Grid>

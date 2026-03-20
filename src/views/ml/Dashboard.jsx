@@ -130,7 +130,7 @@ export default function MlDashboard() {
         </Stack>
       </Grid>
 
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
         <MlSummaryCard
           title="Active Model"
           value={activeModelVersion}
@@ -138,7 +138,7 @@ export default function MlDashboard() {
           loading={loading}
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
         <MlSummaryCard
           title="Active Dataset"
           value={activeDataset?.version || activeModel?.trainedOnDataset || '-'}
@@ -146,14 +146,12 @@ export default function MlDashboard() {
           loading={loading}
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
         <MlSummaryCard title="Registered Models" value={counts.registeredModels || 0} subtitle="Model registry entries" loading={loading} />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-        <MlSummaryCard title="Running Jobs" value={counts.runningJobs || 0} subtitle="Queued or running validations" loading={loading} />
-      </Grid>
+    
 
-      <Grid size={{ xs: 12, lg: 6 }}>
+      <Grid size={{ xs: 12 }}>
         <MainCard content={false}>
           <Stack sx={{ p: 2.5 }} spacing={1.5}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} flexWrap="wrap">

@@ -18,6 +18,7 @@ import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 
 import MainCard from 'components/MainCard';
+import FarmOwnerPageHeader from 'views/farmOwner/components/FarmOwnerPageHeader';
 import { useFarms } from 'viewModel/useFarms';
 import { getForecastSnapshotApi, getForecastSnapshotApiFresh } from 'model/cropTrendApi';
 import { PH_PROVINCE_GEOJSON } from 'data/phProvinceGeoJson';
@@ -566,7 +567,7 @@ export default function FarmMapPage() {
           justifyContent="space-between"
           spacing={1.5}
         >
-          <Typography variant="h5">Farm Map</Typography>
+          <FarmOwnerPageHeader title="Farm Map" current="Farm Map" />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
             <FormControl size="small" sx={{ minWidth: 180 }}>

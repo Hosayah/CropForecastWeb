@@ -174,6 +174,24 @@ export const getForecastSnapshotApiFresh = (params) =>
 export const getForecastSnapshotMetadataApi = (params) =>
   cachedGet('/forecast/v1/snapshot/metadata', params, { ttlMs: 60000 });
 
+export const getForecastSnapshotMetadataApiFresh = (params) =>
+  cachedGet('/forecast/v1/snapshot/metadata', params, { ttlMs: 60000, staleWhileRevalidate: false });
+
+export const getForecastSnapshotProvinceListApi = (params) =>
+  cachedGet('/forecast/v1/snapshot/provinces', params, { ttlMs: 30000 });
+
+export const getForecastSnapshotProvinceListApiFresh = (params) =>
+  cachedGet('/forecast/v1/snapshot/provinces', params, { ttlMs: 30000, staleWhileRevalidate: false });
+
+export const getForecastSnapshotProvinceDetailsApi = (provinceId, params) =>
+  cachedGet(`/forecast/v1/snapshot/province/${encodeURIComponent(provinceId)}`, params, { ttlMs: 30000 });
+
+export const getForecastSnapshotProvinceDetailsApiFresh = (provinceId, params) =>
+  cachedGet(`/forecast/v1/snapshot/province/${encodeURIComponent(provinceId)}`, params, {
+    ttlMs: 30000,
+    staleWhileRevalidate: false
+  });
+
 export const forecastBatchApi = (params) =>
   cachedGet('/forecast/batch', params, { ttlMs: 30000 });
 

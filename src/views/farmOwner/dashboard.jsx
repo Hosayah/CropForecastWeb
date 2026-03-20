@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { InputLabel } from '@mui/material';
 import Select from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
+import FormControl from '@mui/material/FormControl';
 
 import AnalyticCardSkeleton from '../../components/skeletons/AnalyticCardSkeleton';
 import ChartSkeleton from '../../components/skeletons/ChartSkeleton';
@@ -17,6 +18,7 @@ import CropsTable from 'sections/dashboard/default/CropsTable';
 import CropTrendCard from 'sections/dashboard/default/CropTrendCard';
 import EmptyFarmState from 'sections/dashboard/default/EmptyFarmState';
 import NoSnapshotState from 'sections/dashboard/default/NoSnapshotState';
+import FarmOwnerPageHeader from 'views/farmOwner/components/FarmOwnerPageHeader';
 import { usePreferences } from 'hooks/usePreferences';
 
 import { useCropAnalytics } from 'viewModel/useCropAnalytics';
@@ -163,7 +165,7 @@ export default function FarmOwnerDashboard() {
           justifyContent="space-between"
           alignItems={{ xs: 'stretch', sm: 'center' }}
         >
-          <Typography variant="h5">Home</Typography>
+          <FarmOwnerPageHeader title="Home" current="Dashboard" />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <InputLabel>Province:</InputLabel>
@@ -181,20 +183,6 @@ export default function FarmOwnerDashboard() {
               {provinceOptions.map((province) => (
                 <MenuItem key={province.value} value={province.value}>
                   {province.label}
-                </MenuItem>
-              ))}
-            </Select>
-            <InputLabel>Quarter:</InputLabel>
-            <Select
-              size="small"
-              value={selectedTop10Period}
-              onChange={(e) => setSelectedTop10Period(e.target.value)}
-              sx={{ minWidth: { xs: '100%', sm: 160 } }}
-              disabled={top10Periods.length === 0 || showDashboardSkeleton || isWarmupState}
-            >
-              {top10Periods.map((period) => (
-                <MenuItem key={period} value={period}>
-                  {period}
                 </MenuItem>
               ))}
             </Select>
@@ -284,7 +272,29 @@ export default function FarmOwnerDashboard() {
 
           <Grid size={{ xs: 12 }}>
             <MainCard sx={{ mt: 2 }} content={false}>
-              <CropsTable rows={topCrops} province={provinceLabel} periodLabel={selectedTop10Period || 'Latest'} />
+              <CropsTable
+                rows={topCrops}
+                province={provinceLabel}
+                periodLabel={selectedTop10Period || 'Latest'}
+                headerAction={
+                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+                    <InputLabel id="home-top10-quarter-label">Quarter</InputLabel>
+                    <Select
+                      labelId="home-top10-quarter-label"
+                      label="Quarter"
+                      value={selectedTop10Period}
+                      onChange={(e) => setSelectedTop10Period(e.target.value)}
+                      disabled={top10Periods.length === 0 || showDashboardSkeleton || isWarmupState}
+                    >
+                      {top10Periods.map((period) => (
+                        <MenuItem key={period} value={period}>
+                          {period}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                }
+              />
             </MainCard>
           </Grid>
         </>

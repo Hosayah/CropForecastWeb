@@ -19,7 +19,7 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 
 import MainCard from 'components/MainCard';
 import AnalystPageHeader from './components/AnalystPageHeader';
-import { getForecastSnapshotApi } from 'model/cropTrendApi';
+import useAnalystSnapshot from './useAnalystSnapshot';
 import { downloadCsv, formatNumber } from './utils';
 
 function aggregateByProvince(rows) {
@@ -54,44 +54,27 @@ function aggregateByProvince(rows) {
 }
 
 export default function AnalystProvinceComparison() {
-  const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [orderBy, setOrderBy] = useState('totalYield');
   const [order, setOrder] = useState('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const {
+    snapshot,
+    loading,
+    error,
+    isBackgroundRefreshing,
+    loadedProvinceCount,
+    totalProvinceCount
+  } = useAnalystSnapshot();
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadComparison() {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getForecastSnapshotApi({ compact: 1 });
-        if (!mounted) return;
-        const payload = response?.data || {};
-        const provincesMap = payload?.provinces || {};
-        const data = Object.values(provincesMap).flatMap((provinceDoc) =>
-          Array.isArray(provinceDoc?.rows) ? provinceDoc.rows : []
-        );
-        setRows(aggregateByProvince(data));
-      } catch (err) {
-        if (!mounted) return;
-        setRows([]);
-        setError(err?.response?.data?.error || 'Failed to load province comparison.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    loadComparison();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const rows = useMemo(() => {
+    const provincesMap = snapshot?.provinces || {};
+    const data = Object.values(provincesMap).flatMap((provinceDoc) =>
+      Array.isArray(provinceDoc?.rows) ? provinceDoc.rows : []
+    );
+    return aggregateByProvince(data);
+  }, [snapshot]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -155,6 +138,11 @@ export default function AnalystProvinceComparison() {
         <MainCard content={false}>
           <Stack sx={{ p: 2.5 }} spacing={1.5}>
             <Typography variant="h6">Province Ranking</Typography>
+            {isBackgroundRefreshing ? (
+              <Typography variant="caption" color="text.secondary">
+                Loading {loadedProvinceCount}/{totalProvinceCount || loadedProvinceCount} provinces in the background...
+              </Typography>
+            ) : null}
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
