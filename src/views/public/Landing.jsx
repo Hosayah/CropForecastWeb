@@ -55,7 +55,7 @@ const HERO_STATS = [
   { label: 'Analytics Views', value: 'Trend, risk, outlook', icon: InsightsRoundedIcon }
 ];
 
-const ANDROID_APP_URL = import.meta.env.VITE_ANDROID_APP_URL || '#';
+const ANDROID_APP_URL = import.meta.env.VITE_ANDROID_APP_URL || '/downloads/AgriSense-Beta.apk';
 
 function PhoneMockup({ src, alt }) {
   return (
@@ -189,8 +189,7 @@ export default function LandingPage() {
                     <Button
                       component="a"
                       href={ANDROID_APP_URL}
-                      target="_blank"
-                      rel="noreferrer"
+                      download
                       variant="text"
                       size="large"
                       sx={{
@@ -393,8 +392,7 @@ export default function LandingPage() {
                     <Button
                       component="a"
                       href={ANDROID_APP_URL}
-                      target="_blank"
-                      rel="noreferrer"
+                      download
                       variant="contained"
                       startIcon={<DownloadRoundedIcon />}
                       size="large"
