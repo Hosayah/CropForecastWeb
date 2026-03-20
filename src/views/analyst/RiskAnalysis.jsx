@@ -89,6 +89,11 @@ export default function AnalystRiskAnalysis() {
     [provinceOptions, allProvincesReady]
   );
 
+  const loadedProvinceOptions = useMemo(
+    () => Object.keys(snapshot?.provinces || {}).filter((option) => option && option !== ALL_PROVINCES),
+    [snapshot]
+  );
+
   useEffect(() => {
     const maxH = Number(snapshot?.metadata?.horizon || 4);
     const safeMax = Number.isFinite(maxH) && maxH > 0 ? maxH : 4;
@@ -97,9 +102,15 @@ export default function AnalystRiskAnalysis() {
   }, [snapshot]);
 
   useEffect(() => {
-    const defaultProvince = firstLoadedProvince || selectableProvinceOptions.find((option) => option !== ALL_PROVINCES) || '';
+    const fallbackProvince = selectableProvinceOptions.find((option) => option !== ALL_PROVINCES) || '';
+    const defaultProvince = firstLoadedProvince || (allProvincesReady ? fallbackProvince : '');
+
     if (!province && defaultProvince) {
       setProvince(defaultProvince);
+      return;
+    }
+    if (!allProvincesReady && firstLoadedProvince && province && !loadedProvinceOptions.includes(province)) {
+      setProvince(firstLoadedProvince);
       return;
     }
     if (province === ALL_PROVINCES && !allProvincesReady) {
@@ -109,7 +120,7 @@ export default function AnalystRiskAnalysis() {
     if (province && !selectableProvinceOptions.includes(province)) {
       setProvince(defaultProvince);
     }
-  }, [province, selectableProvinceOptions, firstLoadedProvince, allProvincesReady]);
+  }, [province, selectableProvinceOptions, firstLoadedProvince, allProvincesReady, loadedProvinceOptions]);
 
   const scopedRows = useMemo(() => {
     const provincesMap = snapshot?.provinces || {};

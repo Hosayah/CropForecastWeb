@@ -4,6 +4,7 @@ import { activateUserApi, deactivateUserApi, listUsersApi, updateUserRoleApi, cr
 import { getAdminPageCache, setAdminPageCache } from '../model/adminPageCache';
 
 const USERS_CACHE_KEY = 'admin-users';
+const userRequestInflight = new Map();
 
 export function useAdminUsersViewModel() {
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,16 @@ export function useAdminUsersViewModel() {
     try {
       setError(null);
 
-      const res = await listUsersApi({ page, per_page: perPage });
+      const inflightKey = `users:${page}:${perPage}`;
+      let requestPromise = userRequestInflight.get(inflightKey);
+      if (!requestPromise) {
+        requestPromise = listUsersApi({ page, per_page: perPage }).finally(() => {
+          userRequestInflight.delete(inflightKey);
+        });
+        userRequestInflight.set(inflightKey, requestPromise);
+      }
+
+      const res = await requestPromise;
       const list = res.data.users || [];
       const nextStats = res.data.stats || null;
       const nextPagination = res.data.pagination || null;

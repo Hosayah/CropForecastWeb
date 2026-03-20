@@ -90,10 +90,21 @@ export default function AnalystOverview() {
     [provinceOptions, allProvincesReady]
   );
 
+  const loadedProvinceOptions = useMemo(
+    () => Object.keys(snapshot?.provinces || {}).filter((option) => option && option !== ALL_PROVINCES),
+    [snapshot]
+  );
+
   useEffect(() => {
-    const defaultProvince = firstLoadedProvince || selectableProvinceOptions.find((option) => option !== ALL_PROVINCES) || '';
+    const fallbackProvince = selectableProvinceOptions.find((option) => option !== ALL_PROVINCES) || '';
+    const defaultProvince = firstLoadedProvince || (allProvincesReady ? fallbackProvince : '');
+
     if (!province && defaultProvince) {
       setProvince(defaultProvince);
+      return;
+    }
+    if (!allProvincesReady && firstLoadedProvince && province && !loadedProvinceOptions.includes(province)) {
+      setProvince(firstLoadedProvince);
       return;
     }
     if (province === ALL_PROVINCES && !allProvincesReady) {
@@ -103,7 +114,7 @@ export default function AnalystOverview() {
     if (province && !selectableProvinceOptions.includes(province)) {
       setProvince(defaultProvince);
     }
-  }, [province, selectableProvinceOptions, firstLoadedProvince, allProvincesReady]);
+  }, [province, selectableProvinceOptions, firstLoadedProvince, allProvincesReady, loadedProvinceOptions]);
 
   const scopedRows = useMemo(() => {
     const provincesMap = snapshot?.provinces || {};

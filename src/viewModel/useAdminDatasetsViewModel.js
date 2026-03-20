@@ -10,6 +10,7 @@ import {
 import { getAdminPageCache, setAdminPageCache } from '../model/adminPageCache';
 
 const DATASETS_CACHE_KEY = 'admin-datasets';
+const datasetRequestInflight = new Map();
 
 export function useAdminDatasetsViewModel() {
   const [datasets, setDatasets] = useState([]);
@@ -44,7 +45,16 @@ export function useAdminDatasetsViewModel() {
       setLoading(true);
     }
     try {
-      const res = await listDatasetsApi({ page, per_page: perPage });
+      const inflightKey = `datasets:${page}:${perPage}`;
+      let requestPromise = datasetRequestInflight.get(inflightKey);
+      if (!requestPromise) {
+        requestPromise = listDatasetsApi({ page, per_page: perPage }).finally(() => {
+          datasetRequestInflight.delete(inflightKey);
+        });
+        datasetRequestInflight.set(inflightKey, requestPromise);
+      }
+
+      const res = await requestPromise;
       const nextDatasets = res.data.datasets || [];
       const nextStats = res.data.stats || { total: 0, active: 0, archived: 0 };
       const nextPagination = res.data.pagination || {

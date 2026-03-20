@@ -105,30 +105,56 @@ export default function useAnalystSnapshot() {
           .sort((a, b) => Number(b.recordCount || 0) - Number(a.recordCount || 0) || a.province.localeCompare(b.province))
           .map((item) => item.province);
 
+        setProvinceOptions([ALL_PROVINCES, ...sortedProvinceOptions]);
+        setTotalProvinceCount(sortedProvinceOptions.length);
         const uniqueProvinces = rankedProvinces;
         const firstBatch = uniqueProvinces.slice(0, INITIAL_PROVINCE_COUNT);
         const remaining = uniqueProvinces.slice(INITIAL_PROVINCE_COUNT);
-        const firstProvincePayloads = await Promise.all(firstBatch.map(fetchProvinceSnapshot));
+        const baseUpdatedAt = Math.max(parseUpdatedAt(metaRes), parseUpdatedAt(listRes));
+        let mergedProvinces = {};
+        let hasRenderedInitialProvince = false;
+
+        await Promise.all(
+          firstBatch.map(async (province) => {
+            try {
+              const payload = await fetchProvinceSnapshot(province);
+              if (!active || !payload?.province) return null;
+
+              mergedProvinces = mergeProvincePayloads(mergedProvinces, [payload]);
+              const loadedCount = Object.keys(mergedProvinces).length;
+              const latestUpdatedAt = Math.max(baseUpdatedAt, Number(payload.updatedAt || 0));
+
+              setLoadedProvinceCount(loadedCount);
+              setFirstLoadedProvince((prev) => prev || payload.province || firstBatch[0] || sortedProvinceOptions[0] || '');
+              setSnapshotLastUpdatedAt((prev) => Math.max(prev, latestUpdatedAt));
+              setSnapshot((prev) => ({
+                status: 'success',
+                snapshotId: metaPayload?.snapshotId,
+                metadata: metaPayload?.metadata || {},
+                provinces: mergeProvincePayloads(prev?.provinces || {}, [payload])
+              }));
+
+              if (!hasRenderedInitialProvince) {
+                hasRenderedInitialProvince = true;
+                setLoading(false);
+              }
+              return payload;
+            } catch {
+              return null;
+            }
+          })
+        );
         if (!active) return;
 
-        const firstUpdatedAt = Math.max(
-          parseUpdatedAt(metaRes),
-          parseUpdatedAt(listRes),
-          ...firstProvincePayloads.map((item) => Number(item.updatedAt || 0))
-        );
-
-        setProvinceOptions([ALL_PROVINCES, ...sortedProvinceOptions]);
-        setTotalProvinceCount(sortedProvinceOptions.length);
-        setLoadedProvinceCount(firstProvincePayloads.length);
-        setFirstLoadedProvince(firstBatch[0] || sortedProvinceOptions[0] || '');
-        setSnapshotLastUpdatedAt(firstUpdatedAt);
-        setSnapshot({
-          status: 'success',
-          snapshotId: metaPayload?.snapshotId,
-          metadata: metaPayload?.metadata || {},
-          provinces: mergeProvincePayloads({}, firstProvincePayloads)
-        });
-        setLoading(false);
+        if (!hasRenderedInitialProvince) {
+          setSnapshot({
+            status: 'success',
+            snapshotId: metaPayload?.snapshotId,
+            metadata: metaPayload?.metadata || {},
+            provinces: {}
+          });
+          setLoading(false);
+        }
 
         if (!remaining.length) {
           setIsBackgroundRefreshing(false);
@@ -136,7 +162,6 @@ export default function useAnalystSnapshot() {
         }
 
         setIsBackgroundRefreshing(true);
-        let mergedProvinces = mergeProvincePayloads({}, firstProvincePayloads);
 
         for (let index = 0; index < remaining.length && active; index += BACKGROUND_CHUNK_SIZE) {
           const chunk = remaining.slice(index, index + BACKGROUND_CHUNK_SIZE);

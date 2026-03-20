@@ -20,10 +20,8 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'components/MainCard';
 import AnalystPageHeader from './components/AnalystPageHeader';
 import useAnalystSnapshot from './useAnalystSnapshot';
-import { analyticsRiskApi, analyticsSummaryApi } from 'model/cropTrendApi';
 import { PH_PROVINCE_GEOJSON } from 'data/phProvinceGeoJson';
 import { PSGC_PROVINCE_BY_CODE } from 'data/psgcProvinceByCode';
-import { getPayload } from './utils';
 
 const ALL_PROVINCES = 'ALL';
 const PH_PROVINCES_GEOJSON_LOCAL_URL = '/philippines-provinces.geojson';
@@ -81,24 +79,6 @@ function aggregateRiskPercentages(rows) {
     High: Number(((total.High / sum) * 100).toFixed(2)),
     'Risk-prone': Number(((total['Risk-prone'] / sum) * 100).toFixed(2)),
     Declining: Number(((total.Declining / sum) * 100).toFixed(2))
-  };
-}
-
-function aggregateRiskTotals(riskPayload) {
-  const counts = riskPayload?.risk_counts || {};
-  const totals = { High: 0, 'Risk-prone': 0, Declining: 0 };
-  Object.values(counts).forEach((group) => {
-    totals.High += Number(group?.High || 0);
-    totals['Risk-prone'] += Number(group?.['Risk-prone'] || 0);
-    totals.Declining += Number(group?.Declining || 0);
-  });
-
-  const grandTotal = totals.High + totals['Risk-prone'] + totals.Declining;
-  if (grandTotal <= 0) return { High: 0, 'Risk-prone': 0, Declining: 0 };
-  return {
-    High: Number(((totals.High / grandTotal) * 100).toFixed(2)),
-    'Risk-prone': Number(((totals['Risk-prone'] / grandTotal) * 100).toFixed(2)),
-    Declining: Number(((totals.Declining / grandTotal) * 100).toFixed(2))
   };
 }
 
@@ -256,10 +236,7 @@ export default function AnalystMap() {
   const [horizon, setHorizon] = useState(4);
   const [selectedProvince, setSelectedProvince] = useState(ALL_PROVINCES);
   const [basePeriod, setBasePeriod] = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [risk, setRisk] = useState(null);
   const [geoFeatures, setGeoFeatures] = useState(PH_PROVINCE_GEOJSON?.features || []);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const {
     snapshot,
@@ -287,32 +264,6 @@ export default function AnalystMap() {
   useEffect(() => {
     if (snapshotError) setError(snapshotError);
   }, [snapshotError]);
-
-  useEffect(() => {
-    let mounted = true;
-    async function loadSelectedAnalytics() {
-      setLoading(true);
-      setError('');
-      try {
-        const [summaryRes, riskRes] = await Promise.all([
-          analyticsSummaryApi({ horizon, province: selectedProvince }),
-          analyticsRiskApi({ horizon, province: selectedProvince })
-        ]);
-        if (!mounted) return;
-        setSummary(summaryRes?.data || null);
-        setRisk(riskRes?.data || null);
-      } catch (err) {
-        if (!mounted) return;
-        setError(err?.response?.data?.error || 'Failed to load map analytics.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    loadSelectedAnalytics();
-    return () => {
-      mounted = false;
-    };
-  }, [horizon, selectedProvince]);
 
   useEffect(() => {
     let mounted = true;
@@ -375,12 +326,15 @@ export default function AnalystMap() {
 
   const selectedHorizonLabel = useMemo(() => horizonLabel(basePeriod, horizon), [basePeriod, horizon]);
   const selectedProvinceLabel = selectedProvince === ALL_PROVINCES ? 'All Provinces' : selectedProvince;
-  const totalPredictedYield = Number(summary?.total_predicted_yield || 0);
+  const totalPredictedYield = useMemo(
+    () => quarterRows.reduce((sum, row) => sum + Number(row?.predicted_production || 0), 0),
+    [quarterRows]
+  );
   const currentYield = useMemo(
     () => selectedRows.reduce((sum, row) => sum + Number(row?.predicted_production || 0), 0),
     [selectedRows]
   );
-  const riskPercentages = useMemo(() => aggregateRiskTotals(risk), [risk]);
+  const riskPercentages = useMemo(() => aggregateRiskPercentages(selectedRows), [selectedRows]);
   const palayQuarter = useMemo(
     () =>
       selectedRows
@@ -461,7 +415,7 @@ export default function AnalystMap() {
       <Grid size={{ xs: 12, lg: 7 }}>
         <MainCard content={false}>
           <CardContent>
-            {loading || snapshotLoading ? (
+            {snapshotLoading ? (
               <Skeleton variant="rounded" height={430} />
             ) : (
               <ProvinceMap
@@ -492,7 +446,7 @@ export default function AnalystMap() {
           <CardContent>
             <Stack spacing={1.25}>
               <Typography variant="h6">Details</Typography>
-              {loading || snapshotLoading ? (
+              {snapshotLoading ? (
                 <>
                   <Skeleton />
                   <Skeleton />
