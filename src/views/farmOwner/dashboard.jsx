@@ -121,11 +121,26 @@ export default function FarmOwnerDashboard() {
     selectedProvince
   });
 
+  const normalizedSelectedCrops = useMemo(() => {
+    const order = new Map((trend?.series || []).map((item, index) => [item.label, index]));
+    return (selectedCrops || [])
+      .filter((crop) => order.has(crop))
+      .sort((a, b) => (order.get(a) ?? Number.MAX_SAFE_INTEGER) - (order.get(b) ?? Number.MAX_SAFE_INTEGER));
+  }, [selectedCrops, trend]);
+
   useEffect(() => {
     const metaHorizon = Number(snapshotMetadata?.horizon || 0);
     if (!Number.isFinite(metaHorizon) || metaHorizon <= 0) return;
     if (metaHorizon !== horizon) setHorizon(metaHorizon);
   }, [snapshotMetadata, horizon]);
+
+  useEffect(() => {
+    const current = JSON.stringify(selectedCrops || []);
+    const normalized = JSON.stringify(normalizedSelectedCrops);
+    if (current !== normalized) {
+      setSelectedCrops(normalizedSelectedCrops);
+    }
+  }, [selectedCrops, normalizedSelectedCrops]);
 
   useEffect(() => {
     const labels = Array.isArray(trend?.labels) ? trend.labels : [];
@@ -264,7 +279,7 @@ export default function FarmOwnerDashboard() {
               <CropTrendCard
                 labels={trend.labels}
                 series={trend.series}
-                selectedCrops={selectedCrops}
+                selectedCrops={normalizedSelectedCrops}
                 onSelectedCropsChange={setSelectedCrops}
               />
             )}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
@@ -19,6 +20,14 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { InputLabel } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
+import {
+  ChartsTooltipCell,
+  ChartsTooltipContainer,
+  ChartsTooltipPaper,
+  ChartsTooltipRow,
+  ChartsTooltipTable,
+  useAxesTooltip
+} from '@mui/x-charts/ChartsTooltip';
 
 import MainCard from 'components/MainCard';
 import AnalystPageHeader from './components/AnalystPageHeader';
@@ -27,6 +36,46 @@ import useAnalystSnapshot from './useAnalystSnapshot';
 
 const RISK_KEYS = ['High', 'Risk-prone', 'Declining'];
 const GROUP_ORDER = ['PALAY', 'CORN', 'OTHER'];
+
+function RiskDistributionTooltip(props) {
+  const tooltipData = useAxesTooltip();
+
+  if (!tooltipData?.length) return null;
+
+  return (
+    <ChartsTooltipContainer {...props}>
+      <ChartsTooltipPaper>
+        {tooltipData.map(({ axisId, axisFormattedValue, seriesItems }) => (
+          <ChartsTooltipTable key={axisId}>
+            <Typography component="caption" sx={{ display: 'block', px: 1.5, pt: 1.25 }}>
+              {axisFormattedValue}
+            </Typography>
+            <tbody>
+              {seriesItems.map((item) => (
+                <ChartsTooltipRow key={item.seriesId}>
+                  <ChartsTooltipCell component="th" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 0.5,
+                        bgcolor: item.color,
+                        flexShrink: 0
+                      }}
+                    />
+                    {item.formattedLabel || null}
+                  </ChartsTooltipCell>
+                  <ChartsTooltipCell component="td">{formatPercent(item.value)}</ChartsTooltipCell>
+                </ChartsTooltipRow>
+              ))}
+            </tbody>
+          </ChartsTooltipTable>
+        ))}
+      </ChartsTooltipPaper>
+    </ChartsTooltipContainer>
+  );
+}
 
 function normalizeProvince(value) {
   return String(value || '')
@@ -199,9 +248,24 @@ export default function AnalystRiskAnalysis() {
   const xLabels = useMemo(() => rows.map((row) => row.group), [rows]);
   const series = useMemo(
     () => [
-      { data: rows.map((row) => row.highPct), label: 'High', color: '#52c41a' },
-      { data: rows.map((row) => row.riskPronePct), label: 'Risk-prone', color: '#faad14' },
-      { data: rows.map((row) => row.decliningPct), label: 'Declining', color: '#ff4d4f' }
+      {
+        data: rows.map((row) => row.highPct),
+        label: 'High',
+        color: '#52c41a',
+        valueFormatter: (value) => formatPercent(value)
+      },
+      {
+        data: rows.map((row) => row.riskPronePct),
+        label: 'Risk-prone',
+        color: '#faad14',
+        valueFormatter: (value) => formatPercent(value)
+      },
+      {
+        data: rows.map((row) => row.decliningPct),
+        label: 'Declining',
+        color: '#ff4d4f',
+        valueFormatter: (value) => formatPercent(value)
+      }
     ],
     [rows]
   );

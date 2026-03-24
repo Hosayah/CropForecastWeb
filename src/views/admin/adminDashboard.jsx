@@ -591,7 +591,7 @@ export default function AdminDashboard() {
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <MainCard content={false} sx={{ border: 1, borderColor: 'divider' }}>
-                    <Stack sx={{ p: 2 }} spacing={1.25}>
+                    <Stack sx={{ p: 2,  minHeight: 135 }} spacing={1.25}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <MemoryIcon fontSize="small" />
                         <Typography variant="subtitle1">Process</Typography>
@@ -606,8 +606,19 @@ export default function AdminDashboard() {
                         />
                         <Chip label={`Threads ${processMetrics.threadCount || 0}`} size="small" variant="outlined" />
                         <Chip label={`Uptime ${processMetrics.uptimeMinutes || 0} min`} size="small" variant="outlined" />
-                        <Chip label={`Instances ${processMetrics.instanceCount || 0}`} size="small" variant="outlined" />
+                        
                       </Stack>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          CPU Usage: {toFixed(processMetrics.cpuPercent, 4)}%
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(100, Number(requestMetrics.errorRatePercent) || 0)}
+                          color={Number(requestMetrics.errorRatePercent) > 5 ? 'warning' : 'info'}
+                          sx={{ mt: 0.75 }}
+                        />
+                      </Box>
                     </Stack>
                   </MainCard>
                 </Grid>
@@ -706,8 +717,8 @@ export default function AdminDashboard() {
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {errorItem.status ? `Status ${errorItem.status}` : 'Error'}
-                            {errorItem.error_type ? ` • ${errorItem.error_type}` : ''}
-                            {errorItem.source ? ` • ${errorItem.source}` : ''}
+                            {errorItem.error_type ? ` ï¿½ ${errorItem.error_type}` : ''}
+                            {errorItem.source ? ` ï¿½ ${errorItem.source}` : ''}
                           </Typography>
                         </Stack>
                       </MainCard>

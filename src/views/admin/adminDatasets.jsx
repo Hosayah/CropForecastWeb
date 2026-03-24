@@ -387,7 +387,6 @@ export default function AdminDatasets() {
                                     </Button>
                                   ) : (
                                     <>
-                                      <Chip size="small" color="success" label="Active Dataset" />
                                       <Button
                                         size="small"
                                         variant="text"

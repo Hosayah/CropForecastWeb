@@ -25,8 +25,9 @@ import { createFarmApi, updateFarmApi, deleteFarmApi } from 'model/farmApi';
 import { clearCropTrendCache } from 'model/cropTrendApi';
 
 export default function FarmManagementPage() {
-  const { farms, loading, error, refresh, defaultFarmId, setDefaultFarmId } = useFarms();
+  const { farms, loading, error, refresh } = useFarms();
   const FIRST_FARM_HELPER_KEY = 'agrisense:first_farm_helper_dismissed';
+  const canCreateFarm = farms.length < 10;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFarm, setEditingFarm] = useState(null);
@@ -45,6 +46,15 @@ export default function FarmManagementPage() {
 
   async function handleSaveFarm(formData) {
     try {
+      if (!editingFarm && !canCreateFarm) {
+        setToast({
+          open: true,
+          severity: 'warning',
+          message: 'Farm limit reached. You can create up to 10 farms for now.'
+        });
+        return;
+      }
+
       setSaving(true);
 
       const payload = {
@@ -95,10 +105,8 @@ export default function FarmManagementPage() {
     if (!farmToDelete) return;
     try {
       setDeleting(true);
-      const deletingDefault = String(farmToDelete.id) === String(defaultFarmId);
 
       await deleteFarmApi(farmToDelete.id);
-      if (deletingDefault) setDefaultFarmId('');
 
       clearCropTrendCache();
       window.dispatchEvent(new CustomEvent('agrisense:farms-mutated'));
@@ -172,12 +180,19 @@ export default function FarmManagementPage() {
       </Dialog>
 
       <Grid size={12} container alignItems="center" justifyContent="space-between">
-        <FarmOwnerPageHeader title="Farm Management" current="Farm Management" />
+        <Stack spacing={0.75}>
+          <FarmOwnerPageHeader title="Farm Management" current="Farm Management" />
+          <Typography variant="caption" color="text.secondary">
+            {`${farms.length}/10 farms`}
+          </Typography>
+        </Stack>
 
         <Button
           variant="contained"
           size="small"
+          disabled={!canCreateFarm}
           onClick={() => {
+            if (!canCreateFarm) return;
             setEditingFarm(null);
             setModalOpen(true);
           }}
@@ -185,6 +200,12 @@ export default function FarmManagementPage() {
           Add Farm
         </Button>
       </Grid>
+
+      {!canCreateFarm && (
+        <Grid size={12}>
+          <Alert severity="info">Farm limit reached. You can keep up to 10 farms for now. Edit or delete an existing farm to add another.</Alert>
+        </Grid>
+      )}
 
       {farms.length === 0 && (
         <Grid size={12}>
@@ -197,7 +218,6 @@ export default function FarmManagementPage() {
       )}
 
       {farms.map((farm) => {
-        const isDefault = String(farm.id) === String(defaultFarmId);
         return (
           <Grid key={farm.id} size={{ xs: 12, sm: 6, lg: 4 }}>
             <MainCard
@@ -212,7 +232,6 @@ export default function FarmManagementPage() {
                   <Stack direction="row" spacing={1} alignItems="center">
                     <AgricultureIcon fontSize="small" color="action" />
                     <Typography variant="h6">{farm.name}</Typography>
-                    {isDefault && <Chip size="small" color="success" label="Default" />}
                   </Stack>
                   <Typography variant="caption" color="text.secondary">
                     Province: {farm.province}
@@ -227,23 +246,7 @@ export default function FarmManagementPage() {
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between" spacing={1}>
-                  <Button
-                    size="small"
-                    variant={isDefault ? 'contained' : 'outlined'}
-                    disabled={isDefault}
-                    onClick={() => {
-                      setDefaultFarmId(farm.id);
-                      setToast({
-                        open: true,
-                        severity: 'info',
-                        message: `${farm.name} set as default farm.`
-                      });
-                    }}
-                  >
-                    {isDefault ? 'Default Farm' : 'Set Default'}
-                  </Button>
-
-                  <Stack direction="row" spacing={1}>
+                  <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
                     <Button
                       size="small"
                       onClick={() => {

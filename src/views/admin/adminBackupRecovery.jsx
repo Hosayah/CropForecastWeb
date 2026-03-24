@@ -15,6 +15,7 @@ import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
 
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -30,7 +31,6 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
 import Snackbar from '@mui/material/Snackbar';
-import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import AddIcon from '@mui/icons-material/Add';
@@ -97,12 +97,45 @@ function StatusChip({ status }) {
   return <Chip size="small" label={cfg.label} color={cfg.color} variant="outlined" />;
 }
 
+const BACKUP_TYPE_DETAILS = {
+  FULL: {
+    label: 'FULL',
+    estimatedTime: '45-60 seconds',
+    description: 'Includes datasets, system configuration, Firestore user data, farms, recommendations, and ML model files/metadata.',
+    includes: ['Datasets', 'System Config', 'User Data', 'Farms', 'Recommendations', 'ML Models']
+  },
+  DATASETS_ONLY: {
+    label: 'DATASETS ONLY',
+    estimatedTime: '10-20 seconds',
+    description: 'Includes dataset files and dataset registry metadata.',
+    includes: ['Datasets']
+  },
+  CONFIG_ONLY: {
+    label: 'CONFIG ONLY',
+    estimatedTime: '5-10 seconds',
+    description: 'Includes the global system configuration document only.',
+    includes: ['System Config']
+  },
+  USER_DATA_ONLY: {
+    label: 'USER DATA ONLY',
+    estimatedTime: '25-40 seconds',
+    description: 'Includes Firestore user profiles plus each user’s farms and recommendation history.',
+    includes: ['User Data', 'Farms', 'Recommendations']
+  },
+  ML_MODELS_ONLY: {
+    label: 'ML MODELS ONLY',
+    estimatedTime: '20-35 seconds',
+    description: 'Includes model artifacts on disk plus model registry, validation jobs, and evaluation history.',
+    includes: ['ML Models']
+  }
+};
+
 export default function AdminBackupRecovery() {
   const { backups, stats, pagination, loading, busy, fetchBackups, createBackup, restoreBackup, removeBackup, downloadBackup } =
     useAdminBackupViewModel();
 
   const [toast, setToast] = useState({ open: false, severity: 'success', message: '' });
-  const BACKUP_TYPES = useMemo(() => ['FULL', 'DATASETS_ONLY', 'CONFIG_ONLY'], []);
+  const BACKUP_TYPES = useMemo(() => ['FULL', 'DATASETS_ONLY', 'CONFIG_ONLY', 'USER_DATA_ONLY', 'ML_MODELS_ONLY'], []);
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [search, setSearch] = useState('');
 
@@ -114,6 +147,16 @@ export default function AdminBackupRecovery() {
 
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState(null);
+
+  const createTypeDetails = useMemo(
+    () => BACKUP_TYPE_DETAILS[createForm.backupType] || BACKUP_TYPE_DETAILS.FULL,
+    [createForm.backupType]
+  );
+
+  const restoreTypeDetails = useMemo(() => {
+    if (!restoreTarget) return null;
+    return BACKUP_TYPE_DETAILS[restoreTarget.backupType] || null;
+  }, [restoreTarget]);
 
   useEffect(() => {
     fetchBackups({ page: 1, perPage: pagination.perPage });
@@ -323,7 +366,12 @@ export default function AdminBackupRecovery() {
                         <TableRow key={b.id} hover>
                           <TableCell>{b.createdAt}</TableCell>
                           <TableCell>
-                            <Chip size="small" label={(b.backupType || '').replace('_', ' ')} variant="outlined" icon={<StorageIcon />} />
+                            <Chip
+                              size="small"
+                              label={(BACKUP_TYPE_DETAILS[b.backupType]?.label || b.backupType || '').replace('_', ' ')}
+                              variant="outlined"
+                              icon={<StorageIcon />}
+                            />
                           </TableCell>
                           <TableCell>
                             <StatusChip status={b.status} />
@@ -408,8 +456,12 @@ export default function AdminBackupRecovery() {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              This will create a server snapshot of datasets and/or system configuration.
+              Choose a backup scope below. The system will package the selected data into a downloadable restore point.
             </Typography>
+
+            <Alert severity="info">
+              Estimated completion time for <strong>{createTypeDetails.label}</strong>: {createTypeDetails.estimatedTime}
+            </Alert>
 
             <Stack spacing={1}>
               <InputLabel>Backup Type</InputLabel>
@@ -417,8 +469,29 @@ export default function AdminBackupRecovery() {
                 <MenuItem value="FULL">FULL</MenuItem>
                 <MenuItem value="DATASETS_ONLY">DATASETS ONLY</MenuItem>
                 <MenuItem value="CONFIG_ONLY">CONFIG ONLY</MenuItem>
+                <MenuItem value="USER_DATA_ONLY">USER DATA ONLY</MenuItem>
+                <MenuItem value="ML_MODELS_ONLY">ML MODELS ONLY</MenuItem>
               </Select>
             </Stack>
+
+            <Paper variant="outlined" sx={{ p: 1.5 }}>
+              <Stack spacing={1.25}>
+                <Typography variant="subtitle2">{createTypeDetails.label}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {createTypeDetails.description}
+                </Typography>
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                  {createTypeDetails.includes.map((item) => (
+                    <Chip key={item} size="small" label={item} variant="outlined" />
+                  ))}
+                </Stack>
+                {createForm.backupType === 'USER_DATA_ONLY' || createForm.backupType === 'FULL' ? (
+                  <Typography variant="caption" color="warning.main">
+                    Firebase Authentication accounts are not included. This backup restores Firestore user profiles and related records only.
+                  </Typography>
+                ) : null}
+              </Stack>
+            </Paper>
 
             <Stack spacing={1}>
               <InputLabel>Notes (optional)</InputLabel>
@@ -447,6 +520,11 @@ export default function AdminBackupRecovery() {
           {restoreTarget ? (
             <Stack spacing={1.5}>
               <Alert severity="warning">Restoring will overwrite current datasets and/or config for selected scope.</Alert>
+              {restoreTypeDetails ? (
+                <Alert severity="info">
+                  Estimated restore time for <strong>{restoreTypeDetails.label}</strong>: {restoreTypeDetails.estimatedTime}
+                </Alert>
+              ) : null}
               <Stack spacing={0.5}>
                 <Typography variant="caption" color="text.secondary">
                   Restore from backup
@@ -463,8 +541,23 @@ export default function AdminBackupRecovery() {
                 <Typography variant="caption" color="text.secondary">
                   Type
                 </Typography>
-                <Typography variant="body2">{(restoreTarget.backupType || '').replace('_', ' ')}</Typography>
+                <Typography variant="body2">{(restoreTypeDetails?.label || restoreTarget.backupType || '').replace('_', ' ')}</Typography>
               </Stack>
+              {restoreTypeDetails ? (
+                <Stack spacing={0.75}>
+                  <Typography variant="caption" color="text.secondary">
+                    Included scope
+                  </Typography>
+                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                    {restoreTypeDetails.includes.map((item) => (
+                      <Chip key={item} size="small" label={item} variant="outlined" />
+                    ))}
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {restoreTypeDetails.description}
+                  </Typography>
+                </Stack>
+              ) : null}
               <Stack spacing={0.5}>
                 <Typography variant="caption" color="text.secondary">
                   Location

@@ -26,12 +26,14 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import Snackbar from '@mui/material/Snackbar';
 
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
 import MainCard from 'components/MainCard';
 import AnalystPageHeader from './components/AnalystPageHeader';
 import { listAuditLogsApi } from 'model/adminAuditApi';
+import { downloadCsv } from 'utils/csv';
 
 function SummaryCard({ title, value, subtitle, loading }) {
   return (
@@ -108,6 +110,7 @@ export default function AnalystAuditLogs() {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [selectedLog, setSelectedLog] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [toast, setToast] = useState({ open: false, severity: 'success', message: '' });
 
   useEffect(() => {
     let mounted = true;
@@ -181,6 +184,39 @@ export default function AnalystAuditLogs() {
     setDetailsOpen(true);
   };
 
+  const handleExport = () => {
+    if (!filteredLogs.length) {
+      setToast({
+        open: true,
+        severity: 'info',
+        message: 'There are no audit logs to export for the current filters.'
+      });
+      return;
+    }
+
+    const rows = [
+      ['Timestamp', 'Module', 'Severity', 'Action', 'Actor', 'Target', 'Message', 'IP'],
+      ...filteredLogs.map((log) => [
+        log.timestamp || '',
+        log.module || '',
+        log.severity || '',
+        log.action || '',
+        log.actor || '',
+        log.target || '',
+        log.message || '',
+        log.ip || ''
+      ])
+    ];
+
+    const suffix = [moduleFilter, severityFilter, search.trim() ? 'search' : null].filter(Boolean).join('_').toLowerCase();
+    downloadCsv(`analyst_audit_logs_${suffix || 'all'}.csv`, rows);
+    setToast({
+      open: true,
+      severity: 'success',
+      message: `Exported ${filteredLogs.length} audit log${filteredLogs.length === 1 ? '' : 's'}.`
+    });
+  };
+
   return (
     <Grid container rowSpacing={4.5} columnSpacing={2.75}>
       <Grid size={12}>
@@ -221,7 +257,7 @@ export default function AnalystAuditLogs() {
               Refresh
             </Button>
 
-            <Button variant="contained" disabled>
+            <Button variant="contained" onClick={handleExport}>
               Export
             </Button>
           </Stack>
@@ -378,6 +414,12 @@ export default function AnalystAuditLogs() {
           <Button onClick={() => setDetailsOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={toast.open} autoHideDuration={2200} onClose={() => setToast((prev) => ({ ...prev, open: false }))}>
+        <Alert severity={toast.severity} sx={{ width: '100%' }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Grid>
   );
 }

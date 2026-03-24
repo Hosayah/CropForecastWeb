@@ -75,11 +75,13 @@ export function aggregateTrend(rows, basePeriod = null, horizon = 4) {
     stepMap.set(key, (stepMap.get(key) || 0) + Number(row.predicted_production || 0));
   });
 
-  const series = Array.from(byCrop.entries()).map(([crop, stepMap]) => ({
-    id: String(crop).toLowerCase().replace(/\s+/g, '_'),
-    label: crop,
-    data: keys.map((key) => Number((stepMap.get(key) || 0).toFixed(2)))
-  }));
+  const series = Array.from(byCrop.entries())
+    .map(([crop, stepMap]) => ({
+      id: String(crop).toLowerCase().replace(/\s+/g, '_'),
+      label: crop,
+      data: keys.map((key) => Number((stepMap.get(key) || 0).toFixed(2)))
+    }))
+    .sort((a, b) => (b.data[b.data.length - 1] || 0) - (a.data[a.data.length - 1] || 0));
 
   let labels = keys;
   if (basePeriod && String(basePeriod).includes('Q')) {

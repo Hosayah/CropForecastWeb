@@ -181,7 +181,7 @@ export default function AuthLogin({ isDemo = false }) {
                         size="small"
                       />
                     }
-                    label={<Typography variant="h6">Remember me</Typography>}
+                    label={<Typography variant="h6">Stay signed in</Typography>}
                   />
                   <Link variant="h6" component={RouterLink} to="/forgot-password" color="text.primary">
                     Forgot Password?

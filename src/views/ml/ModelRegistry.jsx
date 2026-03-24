@@ -273,6 +273,7 @@ export default function ModelRegistry() {
     try {
       const res = await evaluateModelApi(model.version, { storeResult: true });
       setEvaluateResult(res?.data?.data || null);
+      await fetchModels();
     } catch (err) {
       setToast({
         open: true,
@@ -545,10 +546,10 @@ export default function ModelRegistry() {
                           </TableCell>
                           <TableCell>{getStatusChip(status)}</TableCell>
                           <TableCell>{row.datasetVersion || '-'}</TableCell>
-                          <TableCell>{formatMetric(row.metrics, 'PALAY')}</TableCell>
-                          <TableCell>{formatMetric(row.metrics, 'CORN')}</TableCell>
-                          <TableCell>{formatMetric(row.metrics, 'OTHER')}</TableCell>
-                          <TableCell>{row.validatedAt || row.createdAt || '-'}</TableCell>
+                          <TableCell>{formatMetric(row.displayMetrics || row.metrics, 'PALAY')}</TableCell>
+                          <TableCell>{formatMetric(row.displayMetrics || row.metrics, 'CORN')}</TableCell>
+                          <TableCell>{formatMetric(row.displayMetrics || row.metrics, 'OTHER')}</TableCell>
+                          <TableCell>{row.latestEvaluationAt || row.validatedAt || row.createdAt || '-'}</TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={1} justifyContent="flex-end">
                               <Button

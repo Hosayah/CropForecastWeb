@@ -33,10 +33,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
-// checkbox
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
-
 // icons
 import AddIcon from '@mui/icons-material/Add';
 import BlockIcon from '@mui/icons-material/Block';
@@ -134,8 +130,7 @@ export default function AdminUsers() {
     email: '',
     role: 'farm_owner',
     tempPassword: '',
-    confirmPassword: '',
-    requirePasswordChange: true
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -169,8 +164,7 @@ export default function AdminUsers() {
       email: '',
       role: 'farm_owner',
       tempPassword: generateTempPassword(),
-      confirmPassword: '',
-      requirePasswordChange: true
+      confirmPassword: ''
     });
     setCreateOpen(true);
   };
@@ -191,7 +185,7 @@ export default function AdminUsers() {
       email: createForm.email.trim(),
       role: createForm.role,
       tempPassword: createForm.tempPassword,
-      requirePasswordChange: createForm.requirePasswordChange
+      requirePasswordChange: false
     };
 
     const res = await createUser(payload);
@@ -400,7 +394,7 @@ export default function AdminUsers() {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              This will create a Firebase Auth account through the backend (Admin SDK). For now, this is UI-only.
+              This will create a Firebase Auth account through the backend (Admin SDK).
             </Typography>
 
             <TextField
@@ -457,16 +451,6 @@ export default function AdminUsers() {
               fullWidth
               error={passwordMismatch}
               helperText={passwordMismatch ? 'Passwords do not match.' : ''}
-            />
-
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={createForm.requirePasswordChange}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, requirePasswordChange: e.target.checked }))}
-                />
-              }
-              label="Require password change on first login"
             />
           </Stack>
         </DialogContent>

@@ -36,6 +36,14 @@ const farmOwner = {
       breadcrumbs: false
     },
     {
+      id: 'farm-map',
+      title: 'Map',
+      type: 'item',
+      url: '/farmOwner/farm-map',
+      icon: icons.MapOutlinedIcon,
+      breadcrumbs: false
+    },
+    {
       id: 'farm-management',
       title: 'Farms',
       type: 'item',
@@ -51,14 +59,7 @@ const farmOwner = {
       icon: icons.CompostOutlinedIcon,
       breadcrumbs: false
     },
-    {
-      id: 'farm-map',
-      title: 'Map',
-      type: 'item',
-      url: '/farmOwner/farm-map',
-      icon: icons.MapOutlinedIcon,
-      breadcrumbs: false
-    }
+    
   ]
 };
 

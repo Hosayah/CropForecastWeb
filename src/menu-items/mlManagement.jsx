@@ -2,12 +2,14 @@ import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import ModelTrainingOutlinedIcon from '@mui/icons-material/ModelTrainingOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 
 const icons = {
   HubOutlinedIcon,
   ModelTrainingOutlinedIcon,
   StorageOutlinedIcon,
-  DashboardOutlinedIcon
+  DashboardOutlinedIcon,
+  AutoAwesomeOutlinedIcon
 };
 
 const mlManagement = {
@@ -17,7 +19,7 @@ const mlManagement = {
   children: [
     {
       id: 'ml-dashboard',
-      title: 'Dashboard',
+      title: 'ML Monitoring',
       type: 'item',
       url: '/ml/dashboard',
       icon: icons.DashboardOutlinedIcon,
@@ -37,6 +39,14 @@ const mlManagement = {
       type: 'item',
       url: '/ml/datasets',
       icon: icons.StorageOutlinedIcon,
+      breadcrumbs: false
+    },
+    {
+      id: 'ml-knowledge',
+      title: 'Knowledge Build Lab',
+      type: 'item',
+      url: '/ml/knowledge',
+      icon: icons.AutoAwesomeOutlinedIcon,
       breadcrumbs: false
     },
     {

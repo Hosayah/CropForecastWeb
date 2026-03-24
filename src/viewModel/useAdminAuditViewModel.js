@@ -14,8 +14,8 @@ export function useAdminAuditViewModel() {
     windowLimit: 500
   });
 
-  const fetchLogs = async ({ force = false, module = 'ALL', severity = 'ALL' } = {}) => {
-    const cacheKey = `${AUDIT_CACHE_KEY}:${module}:${severity}`;
+  const fetchLogs = async ({ force = false } = {}) => {
+    const cacheKey = `${AUDIT_CACHE_KEY}:ALL:ALL`;
     const cached = !force ? getAdminPageCache(cacheKey) : null;
     if (cached) {
       setLogs(cached.logs);
@@ -25,7 +25,7 @@ export function useAdminAuditViewModel() {
       setLoading(true);
     }
     try {
-      const res = await listAuditLogsApi({ module, severity });
+      const res = await listAuditLogsApi();
       const nextLogs = res.data.logs || [];
       const nextStats = res.data.stats || {
         totalLogs: nextLogs.length,

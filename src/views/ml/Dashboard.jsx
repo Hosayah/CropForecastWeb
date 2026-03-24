@@ -8,6 +8,7 @@ import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -19,8 +20,7 @@ import Skeleton from '@mui/material/Skeleton';
 
 import MainCard from 'components/MainCard';
 import MlSummaryCard from 'views/ml/components/MlSummaryCard';
-import { getPerformanceTrendApi, listModelsApi, listValidationJobsApi } from 'model/mlApi';
-import { listDatasetsApi } from 'model/adminDatasetsApi';
+import { getMlDashboardCompactApi } from 'model/mlApi';
 import { getKnowledgeStatusApi } from 'model/adminKnowledgeApi';
 
 const ACTIVE_STATUS = 'active';
@@ -51,51 +51,30 @@ export default function MlDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [modelsRes, datasetsRes, knowledgeRes] = await Promise.all([
-        listModelsApi(),
-        listDatasetsApi(),
+      const [compactRes, knowledgeRes] = await Promise.all([
+        getMlDashboardCompactApi(),
         getKnowledgeStatusApi()
       ]);
-      const list = modelsRes?.data?.data?.models || [];
-      const datasets = datasetsRes?.data?.datasets || [];
+      const compact = compactRes?.data?.data || {};
       const knowledgePayload = knowledgeRes?.data || null;
 
-      const normalizedModels = list.map((m) => ({
-        ...m,
-        validatedAt: m?.validatedAt || m?.createdAt || '-'
-      }));
-      const active = normalizedModels.find((m) => normalizeStatus(m?.status) === ACTIVE_STATUS) || null;
-      const activeDatasetVersion = active?.trainedOnDataset || null;
-      const activeDatasetRow = activeDatasetVersion
-        ? datasets.find((d) => String(d?.version || '').trim() === String(activeDatasetVersion).trim()) || null
-        : null;
-
-      let runningJobs = 0;
-      try {
-        const jobsRes = await listValidationJobsApi();
-        const jobs = jobsRes?.data?.data?.jobs || [];
-        runningJobs = jobs.filter((j) => {
-          const status = normalizeStatus(j?.status);
-          return status === 'queued' || status === 'running';
-        }).length;
-      } catch {
-        runningJobs = 0;
-      }
-
-      let trends = [];
-      if (activeDatasetVersion) {
-        try {
-          const trendRes = await getPerformanceTrendApi(activeDatasetVersion);
-          trends = trendRes?.data?.data?.models || [];
-        } catch {
-          trends = [];
-        }
-      }
+      const active = compact?.activeModel || null;
+      const modelSnapshot = Array.isArray(compact?.modelSnapshot) ? compact.modelSnapshot : [];
+      const trends = Array.isArray(compact?.trendRows) ? compact.trendRows : [];
+      const nextCounts = compact?.counts || {};
 
       setActiveModel(active);
-      setActiveDataset(activeDatasetRow);
-      setCounts({ registeredModels: normalizedModels.length, runningJobs });
-      setModels(normalizedModels.slice(0, 6));
+      setActiveDataset(compact?.activeDataset || null);
+      setCounts({
+        registeredModels: Number(nextCounts?.registeredModels || 0),
+        runningJobs: Number(nextCounts?.runningJobs || 0)
+      });
+      setModels(
+        modelSnapshot.map((model) => ({
+          ...model,
+          validatedAt: model?.validatedAt || '-'
+        }))
+      );
       setTrendRows(trends.slice(0, 6));
       setKnowledgeStatus(knowledgePayload);
     } catch (err) {
@@ -124,7 +103,7 @@ export default function MlDashboard() {
               ML Management
             </Typography>
             <Typography variant="body2" color="text.primary">
-              Dashboard
+              Monitoring
             </Typography>
           </Breadcrumbs>
         </Stack>
@@ -185,6 +164,9 @@ export default function MlDashboard() {
                 <Typography variant="caption" color="text.secondary">
                   Raw source files: {knowledgeStatus?.raw?.fileCount ?? 0} | Corpus version: {knowledgeStatus?.corpusVersion || '-'}
                 </Typography>
+                <Button component={RouterLink} to="/ml/knowledge" size="small" variant="text" sx={{ alignSelf: 'flex-start', px: 0 }}>
+                  Open workflow
+                </Button>
               </>
             )}
           </Stack>

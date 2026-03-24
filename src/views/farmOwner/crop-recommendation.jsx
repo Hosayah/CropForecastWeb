@@ -29,6 +29,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import MainCard from 'components/MainCard';
 import formatRelativeTime from 'utils/helper/formatDateTime';
 import FarmOwnerPageHeader from 'views/farmOwner/components/FarmOwnerPageHeader';
+import { downloadRecommendationPdf } from 'utils/recommendationPdf';
 
 import { useCropRecommendation } from 'viewModel/useCropRecommendation';
 import { useRecommendationChat } from 'viewModel/useRecommendationChat';
@@ -81,6 +82,38 @@ function metricToneForRisk(value) {
   if (normalized === 'RISK-PRONE') return 'warning';
   if (normalized === 'DECLINING') return 'error';
   return 'neutral';
+}
+
+function getClimateSnapshotCard(snapshot) {
+  const rainfall = Number(snapshot?.rainfall);
+  if (Number.isFinite(rainfall) && rainfall > 0) {
+    return {
+      eyebrow: 'Climate snapshot',
+      title: 'Expected rainfall',
+      value: `${Math.round(rainfall).toLocaleString()} mm`,
+      supporting: 'Seasonal precipitation estimate',
+      tone: 'primary'
+    };
+  }
+
+  const avgTemp = Number(snapshot?.avg_temp);
+  if (Number.isFinite(avgTemp) && avgTemp > 0) {
+    return {
+      eyebrow: 'Climate snapshot',
+      title: 'Average temperature',
+      value: `${avgTemp.toFixed(1)}°C`,
+      supporting: 'Seasonal temperature estimate for this farm province',
+      tone: 'neutral'
+    };
+  }
+
+  return {
+    eyebrow: 'Season window',
+    title: 'Forecast horizon in view',
+    value: '-',
+    supporting: 'Climate snapshot is not available yet',
+    tone: 'neutral'
+  };
 }
 
 function uniqueSources(sources) {
@@ -157,8 +190,9 @@ function RankedCardList({ title, items, secondaryLabel = 'Latest forecast', high
               variant="outlined"
               sx={{
                 p: 1.25,
-                borderColor: highlighted ? 'success.main' : undefined,
-                bgcolor: 'grey.50'
+                borderWidth: highlighted ? 2 : 1,
+                borderColor: highlighted ? 'info.main' : undefined,
+                bgcolor: highlighted ? 'info.lighter' : 'grey.50'
               }}
             >
               <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
@@ -295,7 +329,8 @@ export default function CropRecommendationPage() {
   const recSeason = recommendation?.season;
   const province = recommendation?.province;
   const lastGenerated = recommendation?.createdAt;
-
+  const climateSnapshot = recommendation?.climateSnapshot || {};
+  const climateSnapshotCard = getClimateSnapshotCard(climateSnapshot);
   const topOptimal = optimalCrops[0];
   const dominantCrop = commonlyPlanted[0];
   const hasMismatch = Boolean(recommendation && recSeason !== season);
@@ -466,6 +501,20 @@ export default function CropRecommendationPage() {
 
   const relativeTime = lastGenerated ? `(${formatRelativeTime(lastGenerated)})` : '';
   const recommendationUpdatedLabel = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleString() : null;
+  const canDownloadRecommendation =
+    Boolean(recommendation && !hasMismatch && !hasNoFarms && selectedFarmId);
+
+  const handleDownloadRecommendationPdf = () => {
+    if (!canDownloadRecommendation) return;
+    downloadRecommendationPdf({
+      farmName: selectedFarm?.name || selectedFarm?.label || `Farm ${selectedFarmId}`,
+      province: province || selectedFarmProvince,
+      season: recSeason || season,
+      recommendation,
+      climateSummary: climateSnapshotCard,
+      updatedAtLabel: recommendationUpdatedLabel
+    });
+  };
   const chatPromptSuggestions = getChatPromptSuggestions(topOptimal?.crop, dominantCrop?.crop);
 
   const recommendationRankItems = optimalCrops.map((item) => ({
@@ -625,12 +674,23 @@ export default function CropRecommendationPage() {
                             This view blends your farm profile, seasonal fit, and historical crop context so you can review what looks strongest before planting.
                           </Typography>
                         </Box>
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                          {topOptimal ? <Chip label={`Top crop: ${topOptimal.crop}`} color="success" /> : null}
-                          {topOptimal?.risk ? (
-                            <Chip label={`Risk: ${topOptimal.risk}`} variant="outlined" color={riskChipColor(topOptimal.risk)} sx={{ bgcolor: 'background.paper' }} />
+                        <Stack spacing={1.25} alignItems={{ xs: 'stretch', sm: 'flex-end' }} sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 220 } }}>
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
+                            {topOptimal ? <Chip label={`Top crop: ${topOptimal.crop}`} color="success" /> : null}
+                            {topOptimal?.risk ? (
+                              <Chip label={`Risk: ${topOptimal.risk}`} variant="outlined" color={riskChipColor(topOptimal.risk)} sx={{ bgcolor: 'background.paper' }} />
+                            ) : null}
+                            <Chip label={`Season: ${recSeason || season}`} variant="outlined" />
+                          </Stack>
+                          {canDownloadRecommendation ? (
+                            <Button
+                              variant="outlined"
+                              onClick={handleDownloadRecommendationPdf}
+                              sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' }, px: 2.5 }}
+                            >
+                              Download PDF
+                            </Button>
                           ) : null}
-                          <Chip label={`Season: ${recSeason || season}`} variant="outlined" />
                         </Stack>
                       </Stack>
                     </Stack>
@@ -676,11 +736,11 @@ export default function CropRecommendationPage() {
 
               <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                 <RecommendationMetricCard
-                  eyebrow="Season window"
-                  title="Forecast horizon in view"
-                  value={recSeason || season}
-                  supporting="Use this for quarter-specific decisions"
-                  tone="neutral"
+                  eyebrow={climateSnapshotCard.eyebrow}
+                  title={climateSnapshotCard.title}
+                  value={climateSnapshotCard.value}
+                  supporting={climateSnapshotCard.supporting}
+                  tone={climateSnapshotCard.tone}
                 />
               </Grid>
 
@@ -981,12 +1041,6 @@ export default function CropRecommendationPage() {
 
           <Grid size={12}>
             <MainCard>
-              <Typography variant="caption" color="text.secondary">
-                Active Farm Province
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 0.5 }}>
-                {selectedFarmProvince || 'No farm province available'}
-              </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                 This view shows province-level outlook and does not replace farm-specific recommendations.
               </Typography>

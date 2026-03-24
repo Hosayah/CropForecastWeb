@@ -220,7 +220,7 @@ function ProvinceMap({ geoFeatures, selectedProvince, provinceRows, onSelectProv
               ))}
               {isSelected &&
                 paths.map((points, idx) => (
-                  <polygon key={`selected-${normalized}-${idx}`} points={points} fill="none" stroke="#166534" strokeWidth={0.9} />
+                  <polygon key={`selected-${normalized}-${idx}`} points={points} fill="none" stroke="#1E3A8A" strokeWidth={0.9} />
                 ))}
             </g>
           </Tooltip>

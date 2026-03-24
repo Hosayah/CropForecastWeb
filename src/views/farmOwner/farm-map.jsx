@@ -276,7 +276,7 @@ function FarmProvinceMap({
                     key={`selected-${normalized}-${idx}`}
                     points={points}
                     fill="none"
-                    stroke="#166534"
+                    stroke="#1E3A8A"
                     strokeWidth={0.9}
                   />
                 ))}

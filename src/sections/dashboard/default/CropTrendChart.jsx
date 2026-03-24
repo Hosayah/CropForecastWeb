@@ -51,7 +51,12 @@ export default function CropTrendChart({ labels, series, valueSuffix = '' }) {
   };
 
   const chartSeries = series.map((s, idx) => {
-    const color = idx === 0 ? theme.vars.palette.primary.main : theme.vars.palette.primary.light;
+    const color =
+      idx === 0
+        ? theme.vars.palette.primary.main
+        : idx === 1
+          ? theme.vars.palette.primary.light
+          : '#79C63F';
 
     return {
       type: 'line',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAdminSystemConfigViewModel } from 'viewModel/useAdminSystemConfigViewModel';
 
 // material-ui
@@ -20,6 +20,29 @@ import Chip from '@mui/material/Chip';
 
 import MainCard from 'components/MainCard';
 import AdminPageHeader from './components/AdminPageHeader';
+
+function ConfigSummaryCard({ title, children, loading = false, skeletonWidths = ['60%', '70%'] }) {
+  return (
+    <MainCard content={false} sx={{ height: '100%' }}>
+      <Stack sx={{ p: 2.5, minHeight: 150 }} spacing={1.75}>
+        <Typography variant="subtitle2" color="text.secondary">
+          {title}
+        </Typography>
+        {loading ? (
+          <Stack spacing={1.25}>
+            {skeletonWidths.map((width, index) => (
+              <Skeleton key={`${title}-skeleton-${index}`} width={width} height={24} />
+            ))}
+          </Stack>
+        ) : (
+          <Stack spacing={1.25} sx={{ flex: 1, alignItems: 'flex-start' }}>
+            {children}
+          </Stack>
+        )}
+      </Stack>
+    </MainCard>
+  );
+}
 
 export default function AdminSystemConfig() {
   const {
@@ -57,6 +80,22 @@ export default function AdminSystemConfig() {
     severity: 'success',
     message: ''
   });
+
+  const scoringTotals = useMemo(() => {
+    const overall = Number(climateWeight) + Number(soilWeight);
+    const soil =
+      Number(soilTypeWeight) +
+      Number(phWeight) +
+      Number(drainageWeight) +
+      Number(fertilityWeight);
+
+    return {
+      overall,
+      soil,
+      overallValid: Number.isFinite(overall) && overall <= 1,
+      soilValid: Number.isFinite(soil) && soil <= 1
+    };
+  }, [climateWeight, soilWeight, soilTypeWeight, phWeight, drainageWeight, fertilityWeight]);
 
   useEffect(() => {
     fetchConfig();
@@ -215,6 +254,14 @@ export default function AdminSystemConfig() {
       setToast({ open: true, severity: 'error', message: 'All scoring weights must be greater than 0 and not exceed 1.0.' });
       return;
     }
+    if (!scoringTotals.overallValid) {
+      setToast({ open: true, severity: 'error', message: 'Climate and soil weights combined must not exceed 1.0.' });
+      return;
+    }
+    if (!scoringTotals.soilValid) {
+      setToast({ open: true, severity: 'error', message: 'Soil sub-factor weights combined must not exceed 1.0.' });
+      return;
+    }
 
     const result = await updateConfig({
       recommendationScoring: {
@@ -296,91 +343,89 @@ export default function AdminSystemConfig() {
       </Grid>
 
       <Grid size={{ xs: 12, md: 3 }}>
-        <MainCard content={false}>
-          <Stack sx={{ p: 2.5 }} spacing={1.25}>
-            <Typography variant="subtitle2" color="text.secondary">System Status</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
+        <ConfigSummaryCard title="System Status">
+          <Stack spacing={1.25} alignItems="flex-start">
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 98 }}>
+                Maintenance
+              </Typography>
               <Chip
-                label={`Maintenance: ${config?.maintenanceMode ? 'ON' : 'OFF'}`}
+                label={config?.maintenanceMode ? 'ON' : 'OFF'}
                 color={config?.maintenanceMode ? 'warning' : 'success'}
                 variant="outlined"
               />
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 98 }}>
+                AI Forecast
+              </Typography>
               <Chip
-                label={`AI Forecast: ${config?.aiForecastEnabled ? 'ENABLED' : 'DISABLED'}`}
+                label={config?.aiForecastEnabled ? 'ENABLED' : 'DISABLED'}
                 color={config?.aiForecastEnabled ? 'success' : 'default'}
                 variant="outlined"
               />
             </Stack>
           </Stack>
-        </MainCard>
+        </ConfigSummaryCard>
       </Grid>
 
       <Grid size={{ xs: 12, md: 3 }}>
-        <MainCard content={false}>
-          <Stack sx={{ p: 2.5 }} spacing={1.25}>
-            <Typography variant="subtitle2" color="text.secondary">Current Versions</Typography>
-            {loading ? (
-              <>
-                <Skeleton width="60%" />
-                <Skeleton width="70%" />
-              </>
-            ) : (
-              <>
-                <Typography variant="body2">Model: {config?.defaultModelVersion || '-'}</Typography>
-                <Typography variant="body2">Dataset: {config?.defaultDatasetVersion || '-'}</Typography>
-              </>
-            )}
+        <ConfigSummaryCard title="Current Versions" loading={loading}>
+          <Stack spacing={1}>
+            <Stack direction="row" justifyContent="space-between" spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Model
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {config?.defaultModelVersion || '-'}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Dataset
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {config?.defaultDatasetVersion || '-'}
+              </Typography>
+            </Stack>
           </Stack>
-        </MainCard>
+        </ConfigSummaryCard>
       </Grid>
 
       <Grid size={{ xs: 12, md: 3 }}>
-        <MainCard content={false}>
-          <Stack sx={{ p: 2.5 }} spacing={1.25}>
-            <Typography variant="subtitle2" color="text.secondary">Snapshot Status</Typography>
-            <Chip
-              label={
-                snapshotStatus === 'ready'
-                  ? 'READY'
-                  : snapshotStatus === 'no_snapshot'
-                    ? 'NO SNAPSHOT'
-                    : snapshotStatus === 'error'
-                      ? 'ERROR'
-                      : 'IDLE'
-              }
-              color={snapshotStatus === 'ready' ? 'success' : snapshotStatus === 'error' ? 'error' : 'default'}
-              variant="outlined"
-            />
-            <Typography variant="caption" color="text.secondary">
-              {latestSnapshot?.snapshotId ? `ID: ${latestSnapshot.snapshotId}` : 'No generated snapshot yet'}
-            </Typography>
-          </Stack>
-        </MainCard>
+        <ConfigSummaryCard title="Snapshot Status">
+          <Chip
+            label={
+              snapshotStatus === 'ready'
+                ? 'READY'
+                : snapshotStatus === 'no_snapshot'
+                  ? 'NO SNAPSHOT'
+                  : snapshotStatus === 'error'
+                    ? 'ERROR'
+                    : 'IDLE'
+            }
+            color={snapshotStatus === 'ready' ? 'success' : snapshotStatus === 'error' ? 'error' : 'default'}
+            variant="outlined"
+            sx={{ alignSelf: 'flex-start', minWidth: 120 }}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ pt: 0.25 }}>
+            {latestSnapshot?.snapshotId ? `ID: ${latestSnapshot.snapshotId}` : 'No generated snapshot yet'}
+          </Typography>
+        </ConfigSummaryCard>
       </Grid>
 
       <Grid size={{ xs: 12, md: 3 }}>
-        <MainCard content={false}>
-          <Stack sx={{ p: 2.5 }} spacing={1.25}>
-            <Typography variant="subtitle2" color="text.secondary">Knowledge Corpus</Typography>
-            {knowledgeLoading ? (
-              <>
-                <Skeleton width="42%" />
-                <Skeleton width="65%" />
-              </>
-            ) : (
-              <>
-                <Chip
-                  label={knowledgeStatus?.ready ? 'READY' : 'NOT READY'}
-                  color={knowledgeStatus?.ready ? 'success' : 'warning'}
-                  variant="outlined"
-                />
-                <Typography variant="caption" color="text.secondary">
-                  Documents: {knowledgeStatus?.processed?.documentCount ?? 0} | Chunks: {knowledgeStatus?.processed?.chunkCount ?? 0}
-                </Typography>
-              </>
-            )}
-          </Stack>
-        </MainCard>
+        <ConfigSummaryCard title="Knowledge Corpus" loading={knowledgeLoading} skeletonWidths={['42%', '72%']}>
+          <Chip
+            label={knowledgeStatus?.ready ? 'READY' : 'NOT READY'}
+            color={knowledgeStatus?.ready ? 'success' : 'warning'}
+            variant="outlined"
+            sx={{ alignSelf: 'flex-start', minWidth: 120 }}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ pt: 0.25 }}>
+            Documents: {knowledgeStatus?.processed?.documentCount ?? 0} | Chunks: {knowledgeStatus?.processed?.chunkCount ?? 0}
+          </Typography>
+        </ConfigSummaryCard>
       </Grid>
 
       {/* MAIN CARD */}
@@ -577,6 +622,7 @@ export default function AdminSystemConfig() {
               size="small"
               type="number"
               inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              error={!scoringTotals.overallValid}
               value={climateWeight}
               onChange={(e) => setClimateWeight(e.target.value)}
             />
@@ -585,14 +631,19 @@ export default function AdminSystemConfig() {
               size="small"
               type="number"
               inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              error={!scoringTotals.overallValid}
               value={soilWeight}
               onChange={(e) => setSoilWeight(e.target.value)}
             />
+            <Alert severity={scoringTotals.overallValid ? 'info' : 'error'} variant="outlined">
+              Climate + Soil total: {Number.isFinite(scoringTotals.overall) ? scoringTotals.overall.toFixed(2) : '-'} / 1.00
+            </Alert>
             <TextField
               label="Soil Type Weight"
               size="small"
               type="number"
               inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              error={!scoringTotals.soilValid}
               value={soilTypeWeight}
               onChange={(e) => setSoilTypeWeight(e.target.value)}
             />
@@ -601,6 +652,7 @@ export default function AdminSystemConfig() {
               size="small"
               type="number"
               inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              error={!scoringTotals.soilValid}
               value={phWeight}
               onChange={(e) => setPhWeight(e.target.value)}
             />
@@ -609,6 +661,7 @@ export default function AdminSystemConfig() {
               size="small"
               type="number"
               inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              error={!scoringTotals.soilValid}
               value={drainageWeight}
               onChange={(e) => setDrainageWeight(e.target.value)}
             />
@@ -617,15 +670,19 @@ export default function AdminSystemConfig() {
               size="small"
               type="number"
               inputProps={{ step: 0.01, min: 0.0001, max: 1 }}
+              error={!scoringTotals.soilValid}
               value={fertilityWeight}
               onChange={(e) => setFertilityWeight(e.target.value)}
             />
+            <Alert severity={scoringTotals.soilValid ? 'info' : 'error'} variant="outlined">
+              Soil sub-factor total: {Number.isFinite(scoringTotals.soil) ? scoringTotals.soil.toFixed(2) : '-'} / 1.00
+            </Alert>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
               <Button
                 variant="contained"
                 onClick={handleSaveRecommendationScoring}
-                disabled={saving}
+                disabled={saving || !scoringTotals.overallValid || !scoringTotals.soilValid}
               >
                 {saving ? <CircularProgress size={18} color="inherit" /> : 'Save Scoring Weights'}
               </Button>

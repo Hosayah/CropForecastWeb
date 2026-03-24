@@ -6,6 +6,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import BackupOutlinedIcon from '@mui/icons-material/BackupOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 
 // icons
 const icons = {
@@ -15,7 +16,8 @@ const icons = {
   SettingsOutlinedIcon,
   SecurityOutlinedIcon,
   BackupOutlinedIcon,
-  HubOutlinedIcon
+  HubOutlinedIcon,
+  AutoAwesomeOutlinedIcon
 };
 
 // ==============================|| MENU ITEMS - ADMIN ||============================== //
@@ -47,6 +49,14 @@ const admin = {
       type: 'item',
       url: '/admin/datasets',
       icon: icons.StorageOutlinedIcon,
+      breadcrumbs: false
+    },
+    {
+      id: 'admin-knowledge',
+      title: 'Knowledge Release',
+      type: 'item',
+      url: '/admin/knowledge',
+      icon: icons.AutoAwesomeOutlinedIcon,
       breadcrumbs: false
     }
   ]

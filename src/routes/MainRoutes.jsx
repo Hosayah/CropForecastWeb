@@ -24,11 +24,13 @@ const AdminSystemConfig = Loadable(lazy(() => import('views/admin/adminSystemCon
 const AdminAuditLogs = Loadable(lazy(() => import('views/admin/adminAuditLogs')));
 const AdminBackupRecovery = Loadable(lazy(() => import('views/admin/adminBackupRecovery')));
 const AdminIntegrations = Loadable(lazy(() => import('views/admin/adminIntegrations')));
+const AdminKnowledgeManagement = Loadable(lazy(() => import('views/admin/adminKnowledgeManagement')));
 const ModelRegistry = Loadable(lazy(() => import('views/ml/ModelRegistry')));
 const MlDatasets = Loadable(lazy(() => import('views/ml/Datasets')));
 const TrainingJobs = Loadable(lazy(() => import('views/ml/TrainingJobs')));
 const TrainingJobDetails = Loadable(lazy(() => import('views/ml/TrainingJobDetails')));
 const MlDashboard = Loadable(lazy(() => import('views/ml/Dashboard')));
+const MlKnowledgeManagement = Loadable(lazy(() => import('views/ml/KnowledgeManagement')));
 const AnalystOverview = Loadable(lazy(() => import('views/analyst/Overview')));
 const AnalystRiskAnalysis = Loadable(lazy(() => import('views/analyst/RiskAnalysis')));
 const AnalystProvinceComparison = Loadable(lazy(() => import('views/analyst/ProvinceComparison')));
@@ -214,6 +216,14 @@ const MainRoutes = {
           )
         },
         {
+          path: 'knowledge',
+          element: (
+            <RoleGuard allowedRoles={['admin', 'superadmin']}>
+              <AdminKnowledgeManagement />
+            </RoleGuard>
+          )
+        },
+        {
           path: 'audit-logs',
           element: (
             <SuperAdminOnly>
@@ -266,6 +276,14 @@ const MainRoutes = {
             <MlAdvancedOnly>
               <MlDatasets />
             </MlAdvancedOnly>
+          )
+        },
+        {
+          path: 'knowledge',
+          element: (
+            <MlModuleAccessOnly>
+              <MlKnowledgeManagement />
+            </MlModuleAccessOnly>
           )
         },
         {

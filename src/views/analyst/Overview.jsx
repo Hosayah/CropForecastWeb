@@ -181,15 +181,6 @@ export default function AnalystOverview() {
     });
   }, [trend.series]);
 
-  const filteredTrend = useMemo(() => {
-    if (!selectedCrops.length) return trend;
-    const selectedSet = new Set(selectedCrops);
-    return {
-      labels: trend.labels,
-      series: trend.series.filter((item) => selectedSet.has(item.label))
-    };
-  }, [trend, selectedCrops]);
-
   useEffect(() => {
     setPage(0);
   }, [province, rowsPerPage, trend.series.length]);
@@ -267,29 +258,6 @@ export default function AnalystOverview() {
       ))}
 
       <Grid size={12}>
-        {!loading && trend.series.length > 0 ? (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 1.5 }}>
-            <InputLabel>Compare Crops:</InputLabel>
-            <Select
-              size="small"
-              multiple
-              value={selectedCrops}
-              onChange={(event) => {
-                const next = Array.isArray(event.target.value) ? event.target.value : [];
-                setSelectedCrops(next.slice(0, 3));
-              }}
-              renderValue={(selected) => selected.join(' vs ')}
-              sx={{ minWidth: { xs: '100%', sm: 260 } }}
-            >
-              {trend.series.map((item) => (
-                <MenuItem key={`select-${item.id}`} value={item.label}>
-                  {item.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </Stack>
-        ) : null}
-
         {loading ? (
           <MainCard content={false}>
             <Stack sx={{ p: 2.5 }} spacing={1.5}>
@@ -297,7 +265,7 @@ export default function AnalystOverview() {
               <Skeleton variant="rounded" height={360} />
             </Stack>
           </MainCard>
-        ) : filteredTrend.series.length === 0 ? (
+        ) : trend.series.length === 0 ? (
           isBackgroundRefreshing ? (
             <MainCard content={false}>
               <Stack sx={{ p: 2.5 }} spacing={1.5}>
@@ -313,13 +281,13 @@ export default function AnalystOverview() {
           )
         ) : (
           <CropTrendCard
-            labels={filteredTrend.labels}
-            series={filteredTrend.series}
+            labels={trend.labels}
+            series={trend.series}
             selectedCrops={selectedCrops}
             onSelectedCropsChange={setSelectedCrops}
             maxSelectable={3}
             valueSuffix="MT"
-            showCropSelector={false}
+            showCropSelector
           />
         )}
       </Grid>

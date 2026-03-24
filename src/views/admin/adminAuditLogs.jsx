@@ -38,6 +38,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import MainCard from 'components/MainCard';
 import AdminPageHeader from './components/AdminPageHeader';
 import { useAdminAuditViewModel } from 'viewModel/useAdminAuditViewModel';
+import { downloadCsv } from 'utils/csv';
 
 function AdminSummaryCard({ title, value, subtitle, loading }) {
   return (
@@ -121,11 +122,19 @@ export default function AdminAuditLogs() {
 
   useEffect(() => {
     setPage(0);
-    fetchLogs({ module: moduleFilter, severity: severityFilter });
-  }, [moduleFilter, severityFilter]);
+    fetchLogs();
+  }, []);
 
   const filteredLogs = useMemo(() => {
     let list = [...logs].filter((log) => log.module !== 'SECURITY');
+
+    if (moduleFilter !== 'ALL') {
+      list = list.filter((log) => String(log.module || '').toUpperCase() === moduleFilter);
+    }
+
+    if (severityFilter !== 'ALL') {
+      list = list.filter((log) => String(log.severity || '').toUpperCase() === severityFilter);
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -141,7 +150,7 @@ export default function AdminAuditLogs() {
 
     list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
     return list;
-  }, [logs, search]);
+  }, [logs, search, moduleFilter, severityFilter]);
 
   const pagedLogs = useMemo(() => {
     const start = page * rowsPerPage;
@@ -149,6 +158,39 @@ export default function AdminAuditLogs() {
   }, [filteredLogs, page, rowsPerPage]);
 
   const visibleAdminActions = useMemo(() => pagedLogs.filter((log) => log.actor?.includes('@')).length, [pagedLogs]);
+
+  const handleExport = () => {
+    if (!filteredLogs.length) {
+      setToast({
+        open: true,
+        severity: 'info',
+        message: 'There are no audit logs to export for the current filters.'
+      });
+      return;
+    }
+
+    const rows = [
+      ['Timestamp', 'Module', 'Severity', 'Action', 'Actor', 'Target', 'Message', 'IP'],
+      ...filteredLogs.map((log) => [
+        log.timestamp || '',
+        log.module || '',
+        log.severity || '',
+        log.action || '',
+        log.actor || '',
+        log.target || '',
+        log.message || '',
+        log.ip || ''
+      ])
+    ];
+
+    const suffix = [moduleFilter, severityFilter, search.trim() ? 'search' : null].filter(Boolean).join('_').toLowerCase();
+    downloadCsv(`audit_logs_${suffix || 'all'}.csv`, rows);
+    setToast({
+      open: true,
+      severity: 'success',
+      message: `Exported ${filteredLogs.length} audit log${filteredLogs.length === 1 ? '' : 's'}.`
+    });
+  };
 
   useEffect(() => {
     setPage(0);
@@ -200,16 +242,14 @@ export default function AdminAuditLogs() {
               startIcon={<RefreshIcon />}
               onClick={() =>
                 fetchLogs({
-                  force: true,
-                  module: moduleFilter,
-                  severity: severityFilter
+                  force: true
                 })
               }
             >
               Refresh
             </Button>
 
-            <Button variant="contained" startIcon={<FileDownloadIcon />}>
+            <Button variant="contained" startIcon={<FileDownloadIcon />} onClick={handleExport}>
               Export
             </Button>
           </Stack>
